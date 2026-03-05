@@ -1,11 +1,11 @@
 Metric,Value,Description,LastUpdated
 TotalCourses,=COUNTA(Courses!A2:A),Total number of courses in catalog,=NOW()
-ActiveCourses,=COUNTIF(Courses!E2:E,"active"),Courses currently active,=NOW()
+ActiveCourses,=COUNTIF(Courses!I2:I,"active"),Courses currently active,=NOW()
 TotalLearners,=COUNTA(Learners!A2:A),Total onboarded learners,=NOW()
 ActiveLearners,=COUNTIF(Learners!G2:G,"active"),Learners currently active,=NOW()
 CompletedLearners,=COUNTIF(Learners!G2:G,"completed"),Learners who reached completion,=NOW()
 AvgProgress,=IFERROR(ROUND(AVERAGE(Learners!F2:F),2),0),Average learner progress percent,=NOW()
 TotalLessons,=COUNTA(Lessons!A2:A),Total lessons available,=NOW()
-ActiveLessons,=COUNTIF(Lessons!F2:F,"active"),Lessons with active status,=NOW()
+ActiveLessons,=COUNTIF(Lessons!G2:G,"active"),Lessons with active status,=NOW()
 TotalSubmissions,=COUNTA(Submissions!A2:A),Total lesson submissions,=NOW()
 CompletionRate,=IFERROR(ROUND(COUNTIF(Learners!G2:G,"completed")/COUNTA(Learners!A2:A)*100,2),0),Percent of learners completed,=NOW()

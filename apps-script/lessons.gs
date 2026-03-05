@@ -1,5 +1,21 @@
 /** Lesson retrieval and learning agents. */
 
+
+function getCourseMonths(courseId) {
+  if (!courseId) return [];
+  return readTable(CONFIG.SHEET_NAMES.MONTHS)
+    .filter(function (m) { return String(m.CourseID) === String(courseId); })
+    .map(function (m) { return String(m.MonthID); });
+}
+
+function lessonBelongsToCourse(lessonId, courseId) {
+  if (!courseId) return true;
+  var monthPrefix = String(lessonId || '').split('-')[0]; // e.g. M03
+  if (!monthPrefix) return false;
+  var months = getCourseMonths(courseId);
+  return months.indexOf(monthPrefix) >= 0;
+}
+
 function lessonSortKey(lessonId) {
   var m = lessonId.match(/^M(\d{2})-W(\d{2})-L(\d{2})$/);
   if (!m) return Number.MAX_SAFE_INTEGER;
@@ -12,8 +28,8 @@ function getLessonsForCourse(courseId) {
     .sort(function (a, b) { return lessonSortKey(a.LessonID) - lessonSortKey(b.LessonID); });
 
   if (!courseId) return lessons;
-  return lessons.filter(function () {
-    return true;
+  return lessons.filter(function (lesson) {
+    return lessonBelongsToCourse(lesson.LessonID, courseId);
   });
 }
 

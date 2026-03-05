@@ -68,6 +68,7 @@ slack-lms/
 3. Create an Apps Script project bound to the sheet and paste files from `apps-script/`.
 4. Set Script Properties:
    - `SLACK_SIGNING_SECRET`
+   - `SLACK_VERIFICATION_TOKEN`
    - `SLACK_BOT_TOKEN`
    - `SPREADSHEET_ID`
    - `LESSON_CSV_FILE_ID` (optional for imports)
