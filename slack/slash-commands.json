@@ -1,0 +1,13 @@
+[
+  {"command":"/onboard","description":"Create learner profile","usage_hint":""},
+  {"command":"/enroll","description":"Enroll into a course","usage_hint":"COURSE_ID"},
+  {"command":"/progress","description":"View learner progress","usage_hint":""},
+  {"command":"/learn","description":"Fetch next lesson","usage_hint":""},
+  {"command":"/submit","description":"Submit lesson completion","usage_hint":"M03-W02-L04 complete"},
+  {"command":"/cert","description":"Check certificate eligibility","usage_hint":""},
+  {"command":"/report","description":"Admin reporting snapshot","usage_hint":""},
+  {"command":"/gaps","description":"Show topic gaps","usage_hint":""},
+  {"command":"/courses","description":"List course catalog","usage_hint":""},
+  {"command":"/help","description":"Display command guide","usage_hint":""},
+  {"command":"/unenroll","description":"Unenroll current learner","usage_hint":""}
+]
