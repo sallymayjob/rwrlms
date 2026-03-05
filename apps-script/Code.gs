@@ -25,18 +25,30 @@ function parseSlackRequestEnvelope(e) {
   };
 }
 
+function extractSlackChallenge(e) {
+  var rawBody = (e && e.postData && e.postData.contents) || '';
+  var parsed = safeJsonParse(rawBody, null);
+  if (parsed && parsed.type === 'url_verification' && parsed.challenge) {
+    return String(parsed.challenge);
+  }
+  return '';
+}
+
 function doPost(e) {
+  // Always prioritize Slack Events URL verification with a minimal fast-path response.
+  // This avoids handshake timeout issues caused by downstream auth/logging/parsing errors.
+  var challenge = extractSlackChallenge(e);
+  if (challenge) {
+    return ContentService
+      .createTextOutput(challenge)
+      .setMimeType(ContentService.MimeType.TEXT);
+  }
+
   return withErrorGuard('doPost', function () {
     var envelope = parseSlackRequestEnvelope(e);
     var payload = envelope.data || {};
 
-    // Slack Events API URL verification handshake.
-    // Handle this before auth checks so Slack receives the expected challenge payload promptly.
-    if (payload.type === 'url_verification' && payload.challenge) {
-      return ContentService
-        .createTextOutput(String(payload.challenge))
-        .setMimeType(ContentService.MimeType.TEXT);
-    }
+    verifySlackRequest(e, envelope);
 
     verifySlackRequest(e, envelope);
 
