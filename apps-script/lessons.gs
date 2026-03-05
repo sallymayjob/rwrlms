@@ -7,7 +7,7 @@ function getCourseModules(courseId) {
       return String(m.CourseID) === String(courseId) && String(m.Status).toLowerCase() === 'active';
     })
     .sort(function (a, b) {
-      return toNumber(a.Sequence, 999) - toNumber(b.Sequence, 999);
+      return toNumber(a.ModuleNumber || a.Sequence, 999) - toNumber(b.ModuleNumber || b.Sequence, 999);
     });
 }
 
