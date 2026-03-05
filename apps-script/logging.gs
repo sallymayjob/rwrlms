@@ -1,7 +1,28 @@
 /** Logging helpers for auditing and diagnostics. */
 
+function ensureLogsSheet() {
+  var spreadsheet = getSpreadsheet();
+  var sheet = spreadsheet.getSheetByName(CONFIG.SHEET_NAMES.LOGS);
+  if (sheet) return sheet;
+
+  sheet = spreadsheet.insertSheet(CONFIG.SHEET_NAMES.LOGS);
+  sheet.appendRow(['Timestamp', 'Level', 'EventType', 'UserID', 'Command', 'Message', 'ContextJSON']);
+  return sheet;
+}
+
+function appendLogRow(rowObj) {
+  try {
+    var sheet = ensureLogsSheet();
+    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    var row = headers.map(function (h) { return rowObj[h] !== undefined ? rowObj[h] : ''; });
+    sheet.appendRow(row);
+  } catch (error) {
+    Logger.log('Failed to write log row: ' + error);
+  }
+}
+
 function logEvent(eventType, message, context) {
-  appendRow(CONFIG.SHEET_NAMES.LOGS, {
+  appendLogRow({
     Timestamp: nowISO(),
     Level: 'INFO',
     EventType: eventType,
@@ -13,7 +34,7 @@ function logEvent(eventType, message, context) {
 }
 
 function logError(eventType, error, context) {
-  appendRow(CONFIG.SHEET_NAMES.LOGS, {
+  appendLogRow({
     Timestamp: nowISO(),
     Level: 'ERROR',
     EventType: eventType,
