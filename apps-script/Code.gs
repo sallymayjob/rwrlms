@@ -27,10 +27,19 @@ function parseSlackRequestEnvelope(e) {
 
 function extractSlackChallenge(e) {
   var rawBody = (e && e.postData && e.postData.contents) || '';
+
+  // Primary path: Events API URL verification payload is JSON.
   var parsed = safeJsonParse(rawBody, null);
   if (parsed && parsed.type === 'url_verification' && parsed.challenge) {
     return String(parsed.challenge);
   }
+
+  // Fallback path: tolerate form-encoded challenge payloads.
+  var form = parseFormEncoded(rawBody);
+  if (form && form.challenge) {
+    return String(form.challenge);
+  }
+
   return '';
 }
 
@@ -40,15 +49,13 @@ function doPost(e) {
   var challenge = extractSlackChallenge(e);
   if (challenge) {
     return ContentService
-      .createTextOutput(challenge)
-      .setMimeType(ContentService.MimeType.TEXT);
+      .createTextOutput(JSON.stringify({ challenge: challenge }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 
   return withErrorGuard('doPost', function () {
     var envelope = parseSlackRequestEnvelope(e);
     var payload = envelope.data || {};
-
-    verifySlackRequest(e, envelope);
 
     verifySlackRequest(e, envelope);
 
