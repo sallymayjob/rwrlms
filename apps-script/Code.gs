@@ -50,6 +50,8 @@ function doPost(e) {
 
     verifySlackRequest(e, envelope);
 
+    verifySlackRequest(e, envelope);
+
     // Slash commands.
     if (payload.command) {
       logSlackRequest(payload);
