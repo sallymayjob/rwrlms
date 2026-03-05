@@ -65,7 +65,9 @@ function catalogAgent(payload) {
     if (!courses.length) return slackEphemeral('No active courses available.');
     var lines = ['*Course Catalog*'];
     courses.forEach(function (c) {
-      lines.push('• `' + c.CourseID + '` - ' + c.CourseName + ' (' + c.DurationWeeks + ' weeks)');
+      var courseTitle = c.CourseTitle || c.CourseName || c.CourseID;
+      var months = c.TotalMonths || c.DurationWeeks || '?';
+      lines.push('• `' + c.CourseID + '` - ' + courseTitle + ' (' + months + ' months)');
     });
     lines.push('Use `/enroll COURSE_ID` to join.');
     return slackEphemeral(lines.join('\n'));

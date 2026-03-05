@@ -1,4 +1,4 @@
-CourseID,CourseName,Description,DurationWeeks,Status
-C001,Research Writing Foundations,Core writing and evidence literacy,12,active
-C002,Policy Analysis Essentials,Analyze and communicate policy tradeoffs,10,active
-C003,Data Storytelling Basics,Turn analysis into persuasive narratives,8,active
+CourseID,CourseTitle,MonthIDs,TotalMonths,TotalLessons,PublishedLessons,CompletionRate,AvgQAScore,Status,Description,DifficultyRange,LastUpdated
+C001,Research Writing Foundations,"M01|M02|M03",3,36,36,0,0,active,Core writing and evidence literacy,Beginner-Intermediate,2026-01-01
+C002,Policy Analysis Essentials,"M01|M02",2,24,24,0,0,active,Analyze and communicate policy tradeoffs,Intermediate,2026-01-01
+C003,Data Storytelling Basics,"M01|M02",2,18,18,0,0,active,Turn analysis into persuasive narratives,Beginner,2026-01-01
