@@ -75,6 +75,7 @@ oauth_config:
       - commands
       - im:write
       - users:read
+      - app_mentions:read
 
 settings:
   event_subscriptions:
