@@ -53,7 +53,8 @@ function enrollmentAgent(payload) {
     });
 
     logEvent('ENROLL', 'Learner enrolled', { userId: payload.user_id, command: payload.command, courseId: courseId });
-    return slackEphemeral('Enrolled in *' + course.CourseName + '* (`' + courseId + '`). Use `/learn` to start.');
+    var courseTitle = course.CourseTitle || course.CourseName || courseId;
+    return slackEphemeral('Enrolled in *' + courseTitle + '* (`' + courseId + '`). Use `/learn` to start.');
   });
 }
 

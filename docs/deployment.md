@@ -4,8 +4,8 @@
 
 - Create spreadsheet: `RWR_LMS_DATABASE`
 - Create tabs:
-  `Courses`, `Months`, `Lessons`, `Learners`, `Submissions`, `Logs`
-- Import corresponding CSV templates from `/database`.
+  `Courses`, `Months`, `Lessons`, `Learners`, `Submissions`, `Logs`, `Dashboard`
+- Import corresponding CSV templates from `/database` (including `dashboard-template.csv` into the `Dashboard` tab).
 
 ## 2) Build Apps Script Project
 
@@ -21,6 +21,7 @@ Required:
 
 - `SPREADSHEET_ID`
 - `SLACK_SIGNING_SECRET`
+- `SLACK_VERIFICATION_TOKEN`
 - `SLACK_BOT_TOKEN`
 - `LESSON_CSV_FILE_ID` (for CSV import)
 

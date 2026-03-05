@@ -12,6 +12,7 @@ Create a spreadsheet named **RWR_LMS_DATABASE**.
 4. `Learners`
 5. `Submissions`
 6. `Logs`
+7. `Dashboard` (optional, recommended)
 
 ## Header Row Requirements
 
