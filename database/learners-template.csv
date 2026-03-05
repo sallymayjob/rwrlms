@@ -1,0 +1,2 @@
+UserID,Name,Email,CourseID,CurrentModule,Progress,Status,JoinedDate
+U001,Sample Learner,learner@example.com,C001,MOD03,25,active,2026-01-01

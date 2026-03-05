@@ -1,0 +1,8 @@
+ModuleID,ModuleTitle,CourseID,ModuleNumber,WeekIDs,LessonIDs,TotalLessons,PublishedLessons,DraftLessons,NeedsRevision,AvgQAScore,QA_PassRate,Status,ThemeDescription,DifficultyTier,LastUpdated
+MOD01,Foundations,C001,1,"W01|W02|W03|W04","M01-W01-L01|M01-W01-L02|M01-W02-L01",12,10,2,1,92,95,active,Research and writing fundamentals,Beginner,2026-01-01
+MOD02,Argumentation,C001,2,"W05|W06|W07|W08","M02-W01-L01|M02-W01-L02|M02-W02-L01",12,9,3,1,89,92,active,Build and critique arguments,Beginner-Intermediate,2026-01-01
+MOD03,Search and Evidence,C001,3,"W09|W10|W11|W12","M03-W01-L01|M03-W01-L02|M03-W02-L01",12,8,4,2,90,91,active,Source vetting and citation quality,Intermediate,2026-01-01
+MOD01,Policy Foundations,C002,1,"W01|W02|W03|W04","M01-W01-L01|M01-W02-L01",12,10,2,1,91,94,active,Policy framing and stakeholder mapping,Intermediate,2026-01-01
+MOD02,Policy Analysis,C002,2,"W05|W06|W07|W08","M02-W01-L01|M02-W02-L01",12,9,3,2,88,90,active,Tradeoff analysis and recommendation writing,Intermediate,2026-01-01
+MOD01,Story Basics,C003,1,"W01|W02|W03|W04","M01-W01-L01|M01-W02-L01",9,8,1,1,93,96,active,Narrative structure and clarity,Beginner,2026-01-01
+MOD02,Data to Narrative,C003,2,"W05|W06|W07|W08","M02-W01-L01|M02-W02-L01",9,7,2,1,90,93,active,Translate data into actionable storylines,Beginner-Intermediate,2026-01-01
