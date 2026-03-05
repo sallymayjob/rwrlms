@@ -1,0 +1,2 @@
+SubmissionID,UserID,LessonID,Timestamp,Score,Status,Method
+S001,U001,M03-W02-L04,2026-01-03T15:00:00Z,100,complete,slash_command
