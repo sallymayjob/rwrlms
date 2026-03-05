@@ -1,90 +1,123 @@
-display_information:
-  name: Agentic LMS
-  description: Serverless micro-learning LMS for Slack + Apps Script + Sheets
-  background_color: "#1f2937"
-
-features:
-  app_home:
-    home_tab_enabled: true
-    messages_tab_enabled: true
-    messages_tab_read_only_enabled: false
-  bot_user:
-    display_name: Agentic LMS
-    always_online: false
-  slash_commands:
-    - command: /onboard
-      url: https://script.google.com/macros/s/DEPLOYMENT_ID/exec
-      description: Create learner profile
-      usage_hint: "no args"
-      should_escape: false
-    - command: /enroll
-      url: https://script.google.com/macros/s/DEPLOYMENT_ID/exec
-      description: Enroll into a course
-      usage_hint: "COURSE_ID"
-      should_escape: false
-    - command: /progress
-      url: https://script.google.com/macros/s/DEPLOYMENT_ID/exec
-      description: View learning progress
-      usage_hint: "no args"
-      should_escape: false
-    - command: /learn
-      url: https://script.google.com/macros/s/DEPLOYMENT_ID/exec
-      description: Fetch next lesson
-      usage_hint: "no args"
-      should_escape: false
-    - command: /submit
-      url: https://script.google.com/macros/s/DEPLOYMENT_ID/exec
-      description: Submit lesson completion
-      usage_hint: "M03-W02-L04 complete"
-      should_escape: false
-    - command: /cert
-      url: https://script.google.com/macros/s/DEPLOYMENT_ID/exec
-      description: Check certification eligibility
-      usage_hint: "no args"
-      should_escape: false
-    - command: /report
-      url: https://script.google.com/macros/s/DEPLOYMENT_ID/exec
-      description: Admin reporting summary
-      usage_hint: "no args"
-      should_escape: false
-    - command: /gaps
-      url: https://script.google.com/macros/s/DEPLOYMENT_ID/exec
-      description: Show skill gaps
-      usage_hint: "no args"
-      should_escape: false
-    - command: /courses
-      url: https://script.google.com/macros/s/DEPLOYMENT_ID/exec
-      description: List available courses
-      usage_hint: "no args"
-      should_escape: false
-    - command: /help
-      url: https://script.google.com/macros/s/DEPLOYMENT_ID/exec
-      description: Display LMS command help
-      usage_hint: "no args"
-      should_escape: false
-    - command: /unenroll
-      url: https://script.google.com/macros/s/DEPLOYMENT_ID/exec
-      description: Unenroll learner from course
-      usage_hint: "COURSE_ID"
-      should_escape: false
-
-oauth_config:
-  scopes:
-    bot:
-      - chat:write
-      - commands
-      - im:write
-      - users:read
-      - app_mentions:read
-
-settings:
-  event_subscriptions:
-    request_url: https://script.google.com/macros/s/DEPLOYMENT_ID/exec
-    bot_events:
-      - app_mention
-  interactivity:
-    is_enabled: true
-    request_url: https://script.google.com/macros/s/DEPLOYMENT_ID/exec
-  org_deploy_enabled: false
-  socket_mode_enabled: false
-  token_rotation_enabled: false
+{
+  "display_information": {
+    "name": "Agentic LMS",
+    "description": "Serverless micro-learning LMS for Slack + Apps Script + Sheets",
+    "background_color": "#1f2937"
+  },
+  "features": {
+    "app_home": {
+      "home_tab_enabled": true,
+      "messages_tab_enabled": true,
+      "messages_tab_read_only_enabled": false
+    },
+    "bot_user": {
+      "display_name": "Agentic LMS",
+      "always_online": false
+    },
+    "slash_commands": [
+      {
+        "command": "/onboard",
+        "url": "https://script.google.com/macros/s/DEPLOYMENT_ID/exec",
+        "description": "Create learner profile",
+        "usage_hint": "no args",
+        "should_escape": false
+      },
+      {
+        "command": "/enroll",
+        "url": "https://script.google.com/macros/s/DEPLOYMENT_ID/exec",
+        "description": "Enroll into a course",
+        "usage_hint": "COURSE_ID",
+        "should_escape": false
+      },
+      {
+        "command": "/progress",
+        "url": "https://script.google.com/macros/s/DEPLOYMENT_ID/exec",
+        "description": "View learning progress",
+        "usage_hint": "no args",
+        "should_escape": false
+      },
+      {
+        "command": "/learn",
+        "url": "https://script.google.com/macros/s/DEPLOYMENT_ID/exec",
+        "description": "Fetch next lesson",
+        "usage_hint": "no args",
+        "should_escape": false
+      },
+      {
+        "command": "/submit",
+        "url": "https://script.google.com/macros/s/DEPLOYMENT_ID/exec",
+        "description": "Submit lesson completion",
+        "usage_hint": "M03-W02-L04 complete",
+        "should_escape": false
+      },
+      {
+        "command": "/cert",
+        "url": "https://script.google.com/macros/s/DEPLOYMENT_ID/exec",
+        "description": "Check certification eligibility",
+        "usage_hint": "no args",
+        "should_escape": false
+      },
+      {
+        "command": "/report",
+        "url": "https://script.google.com/macros/s/DEPLOYMENT_ID/exec",
+        "description": "Admin reporting summary",
+        "usage_hint": "no args",
+        "should_escape": false
+      },
+      {
+        "command": "/gaps",
+        "url": "https://script.google.com/macros/s/DEPLOYMENT_ID/exec",
+        "description": "Show skill gaps",
+        "usage_hint": "no args",
+        "should_escape": false
+      },
+      {
+        "command": "/courses",
+        "url": "https://script.google.com/macros/s/DEPLOYMENT_ID/exec",
+        "description": "List available courses",
+        "usage_hint": "no args",
+        "should_escape": false
+      },
+      {
+        "command": "/help",
+        "url": "https://script.google.com/macros/s/DEPLOYMENT_ID/exec",
+        "description": "Display LMS command help",
+        "usage_hint": "no args",
+        "should_escape": false
+      },
+      {
+        "command": "/unenroll",
+        "url": "https://script.google.com/macros/s/DEPLOYMENT_ID/exec",
+        "description": "Unenroll learner from course",
+        "usage_hint": "COURSE_ID",
+        "should_escape": false
+      }
+    ]
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "chat:write",
+        "commands",
+        "im:write",
+        "users:read",
+        "app_mentions:read"
+      ]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "request_url": "https://script.google.com/macros/s/DEPLOYMENT_ID/exec",
+      "bot_events": [
+        "app_mention"
+      ]
+    },
+    "interactivity": {
+      "is_enabled": true,
+      "request_url": "https://script.google.com/macros/s/DEPLOYMENT_ID/exec"
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": false,
+    "token_rotation_enabled": false
+  }
+}
