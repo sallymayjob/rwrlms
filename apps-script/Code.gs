@@ -34,8 +34,8 @@ function doPost(e) {
     // Handle this before auth checks so Slack receives the expected challenge payload promptly.
     if (payload.type === 'url_verification' && payload.challenge) {
       return ContentService
-        .createTextOutput(JSON.stringify({ challenge: payload.challenge }))
-        .setMimeType(ContentService.MimeType.JSON);
+        .createTextOutput(String(payload.challenge))
+        .setMimeType(ContentService.MimeType.TEXT);
     }
 
     verifySlackRequest(e, envelope);
