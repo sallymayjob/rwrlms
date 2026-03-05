@@ -25,19 +25,39 @@ function parseSlackRequestEnvelope(e) {
   };
 }
 
+function extractSlackChallenge(e) {
+  var rawBody = (e && e.postData && e.postData.contents) || '';
+
+  // Primary path: Events API URL verification payload is JSON.
+  var parsed = safeJsonParse(rawBody, null);
+  if (parsed && parsed.type === 'url_verification' && parsed.challenge) {
+    return String(parsed.challenge);
+  }
+
+  // Fallback path: tolerate form-encoded challenge payloads.
+  var form = parseFormEncoded(rawBody);
+  if (form && form.challenge) {
+    return String(form.challenge);
+  }
+
+  return '';
+}
+
 function doPost(e) {
+  // Always prioritize Slack Events URL verification with a minimal fast-path response.
+  // This avoids handshake timeout issues caused by downstream auth/logging/parsing errors.
+  var challenge = extractSlackChallenge(e);
+  if (challenge) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ challenge: challenge }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   return withErrorGuard('doPost', function () {
     var envelope = parseSlackRequestEnvelope(e);
-    verifySlackRequest(e, envelope);
-
     var payload = envelope.data || {};
 
-    // Slack Events API URL verification handshake.
-    if (payload.type === 'url_verification' && payload.challenge) {
-      return ContentService
-        .createTextOutput(JSON.stringify({ challenge: payload.challenge }))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
+    verifySlackRequest(e, envelope);
 
     // Slash commands.
     if (payload.command) {
