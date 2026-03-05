@@ -57,3 +57,13 @@ RWR LMS Composer
 4. Next lesson identified from `Lessons` by `CurrentModule` or progression logic.
 5. Slack-formatted lesson content returned.
 6. Logs appended for observability.
+
+
+## Slack Payload Types Handled
+
+Payload types:
+- Slash commands (`application/x-www-form-urlencoded`)
+- Interactive payload wrappers (`payload={...}`)
+- Events API URL verification (`type=url_verification`)
+
+This enables a single Apps Script endpoint to play the supervisor-router role without external workflow engines.

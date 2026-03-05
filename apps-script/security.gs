@@ -1,7 +1,14 @@
 /** Slack request authentication and anti-replay checks. */
 
-function verifySlackRequest(e) {
-  const rawBody = (e && e.postData && e.postData.contents) || '';
+function getTokenFromEnvelope(envelope) {
+  var data = (envelope && envelope.data) || {};
+  if (data.token) return data.token;
+  if (data.payload && data.payload.token) return data.payload.token;
+  return '';
+}
+
+function verifySlackRequest(e, envelope) {
+  const rawBody = (envelope && envelope.rawBody) || ((e && e.postData && e.postData.contents) || '');
   const headers = (e && e.headers) || {};
   const signature = headers['X-Slack-Signature'] || headers['x-slack-signature'] || '';
   const timestamp = headers['X-Slack-Request-Timestamp'] || headers['x-slack-request-timestamp'] || '';
@@ -28,9 +35,8 @@ function verifySlackRequest(e) {
     return true;
   }
 
-  // Apps Script web apps often do not expose incoming HTTP headers. Fallback to Slack verification token.
-  const payload = parseFormEncoded(rawBody);
-  const incomingToken = payload.token || '';
+  // Fallback: verification token for environments where inbound headers are unavailable.
+  const incomingToken = getTokenFromEnvelope(envelope);
   const expectedToken = getScriptProperty(CONFIG.PROPERTIES.VERIFICATION_TOKEN);
 
   if (!incomingToken || incomingToken !== expectedToken) {

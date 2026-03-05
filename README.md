@@ -77,6 +77,18 @@ slack-lms/
 7. Point all slash commands to:
    `https://script.google.com/macros/s/DEPLOYMENT_ID/exec`
 
+
+## Supervisor Routing (No n8n)
+
+This repository implements the Slack supervisor/router directly in Apps Script (`doPost`) and does **not** use n8n workflows.
+Supported inbound Slack payloads:
+
+- Slash commands
+- Events API URL verification (`challenge`)
+- Interactive payload envelope acknowledgement
+
+See `docs/supervisor-router.md` for routing details.
+
 ## Supported Slash Commands
 
 - `/onboard`

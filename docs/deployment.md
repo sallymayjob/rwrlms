@@ -47,6 +47,7 @@ Optional:
 
 - Confirm each command points to the same Apps Script endpoint.
 - Reinstall app if scopes or commands changed.
+- No n8n supervisor is required; Apps Script `doPost` handles slash/event/interactive routing.
 
 ## 7) Validate End-to-End
 

@@ -20,6 +20,12 @@ function routeCommand(payload) {
   }
 }
 
+function routeInteractive(interactivePayload) {
+  // Placeholder for block actions / modal submissions.
+  // Current LMS is slash-command-first; interactive events are acknowledged safely.
+  return slackEphemeral('Interactive action received.');
+}
+
 function helpAgent() {
   var lines = [
     '*Agentic LMS Commands*',
