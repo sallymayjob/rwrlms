@@ -1,0 +1,4 @@
+MonthID,CourseID,MonthName,Description,Status
+M01,C001,Foundations,Research and writing fundamentals,active
+M02,C001,Argumentation,Build and critique arguments,active
+M03,C001,Search and Evidence,Source, vet, and cite quality evidence,active
