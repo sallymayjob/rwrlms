@@ -4,7 +4,7 @@
 
 - Create spreadsheet: `RWR_LMS_DATABASE`
 - Create tabs:
-  `Courses`, `Months`, `Lessons`, `Learners`, `Submissions`, `Logs`, `Dashboard`
+  `Courses`, `Modules`, `Lessons`, `Learners`, `Submissions`, `Logs`, `Dashboard`
 - Import corresponding CSV templates from `/database` (including `dashboard-template.csv` into the `Dashboard` tab).
 
 ## 2) Build Apps Script Project

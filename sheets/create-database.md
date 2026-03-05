@@ -7,7 +7,7 @@ Create a spreadsheet named **RWR_LMS_DATABASE**.
 ## Required Tabs
 
 1. `Courses`
-2. `Months`
+2. `Modules`
 3. `Lessons`
 4. `Learners`
 5. `Submissions`

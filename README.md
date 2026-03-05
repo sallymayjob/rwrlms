@@ -31,7 +31,7 @@ slack-lms/
 │   └── slash-commands.json
 ├── database/
 │   ├── courses-template.csv
-│   ├── months-template.csv
+│   ├── modules-template.csv
 │   ├── lessons-template.csv
 │   ├── learners-template.csv
 │   ├── submissions-template.csv
@@ -63,7 +63,7 @@ slack-lms/
 ## Quick Start
 
 1. Create a Google Sheet named `RWR_LMS_DATABASE` with tabs:
-   `Courses`, `Months`, `Lessons`, `Learners`, `Submissions`, `Logs`, `Dashboard` (recommended).
+   `Courses`, `Modules`, `Lessons`, `Learners`, `Submissions`, `Logs`, `Dashboard` (recommended).
 2. Import CSV templates from `database/`, including `dashboard-template.csv` into the `Dashboard` tab.
 3. Create an Apps Script project bound to the sheet and paste files from `apps-script/`.
 4. Set Script Properties:

@@ -10,7 +10,8 @@ function sendDailyLesson() {
     var count = 0;
     learners.forEach(function (learner) {
       try {
-        var lesson = learner.CurrentLesson ? getLessonById(learner.CurrentLesson) : getFirstLessonForCourse(learner.CourseID);
+        var currentModule = learner.CurrentModule || (getFirstModuleForCourse(learner.CourseID) || {}).ModuleID;
+        var lesson = getNextPendingLesson(learner.UserID, learner.CourseID, currentModule);
         if (!lesson) return;
 
         postSlackMessage(learner.UserID, '📘 Daily Lesson Reminder\n' + lessonToSlackText(lesson));

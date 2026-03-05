@@ -4,7 +4,7 @@
 const CONFIG = {
   SHEET_NAMES: {
     COURSES: 'Courses',
-    MONTHS: 'Months',
+    MODULES: 'Modules',
     LESSONS: 'Lessons',
     LEARNERS: 'Learners',
     SUBMISSIONS: 'Submissions',

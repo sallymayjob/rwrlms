@@ -7,7 +7,7 @@
 3. User runs `/enroll COURSE_ID`.
 4. User runs `/learn` to receive the current lesson.
 5. User runs `/submit LESSON_ID complete`.
-6. Progress and next lesson are updated automatically.
+6. Progress is updated and learners advance through lessons inside the active module, then to the next module.
 7. User checks `/progress`, `/gaps`, and `/cert` as needed.
 
 ## Lesson Delivery Flow
@@ -15,7 +15,7 @@
 ```text
 /learn
   -> find Learner by UserID
-  -> resolve CurrentLesson
+  -> resolve CurrentModule
   -> fetch Lesson row
   -> format Slack micro-lesson
   -> return ephemeral response
@@ -28,7 +28,8 @@
   -> validate format + lesson existence
   -> append Submissions row
   -> increment learner progress
-  -> move CurrentLesson to next lesson
+  -> keep learner in current module until all module lessons are done
+  -> advance CurrentModule to next module when applicable
   -> return confirmation
 ```
 

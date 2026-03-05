@@ -1,4 +1,4 @@
-CourseID,CourseTitle,MonthIDs,TotalMonths,TotalLessons,PublishedLessons,CompletionRate,AvgQAScore,Status,Description,DifficultyRange,LastUpdated
-C001,Research Writing Foundations,"M01|M02|M03",3,36,36,0,0,active,Core writing and evidence literacy,Beginner-Intermediate,2026-01-01
-C002,Policy Analysis Essentials,"M01|M02",2,24,24,0,0,active,Analyze and communicate policy tradeoffs,Intermediate,2026-01-01
-C003,Data Storytelling Basics,"M01|M02",2,18,18,0,0,active,Turn analysis into persuasive narratives,Beginner,2026-01-01
+CourseID,CourseTitle,ModuleIDs,TotalModules,TotalLessons,PublishedLessons,CompletionRate,AvgQAScore,Status,Description,DifficultyRange,LastUpdated
+C001,Research Writing Foundations,"MOD01|MOD02|MOD03",3,36,36,0,0,active,Core writing and evidence literacy,Beginner-Intermediate,2026-01-01
+C002,Policy Analysis Essentials,"MOD01|MOD02",2,24,24,0,0,active,Analyze and communicate policy tradeoffs,Intermediate,2026-01-01
+C003,Data Storytelling Basics,"MOD01|MOD02",2,18,18,0,0,active,Turn analysis into persuasive narratives,Beginner,2026-01-01

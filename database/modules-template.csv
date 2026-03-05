@@ -1,0 +1,8 @@
+ModuleID,CourseID,ModuleTitle,Description,Sequence,Status
+MOD01,C001,Foundations,Research and writing fundamentals,1,active
+MOD02,C001,Argumentation,Build and critique arguments,2,active
+MOD03,C001,Search and Evidence,Source vetting and citation quality,3,active
+MOD01,C002,Policy Foundations,Policy framing and stakeholder mapping,1,active
+MOD02,C002,Policy Analysis,Tradeoff analysis and recommendation writing,2,active
+MOD01,C003,Story Basics,Narrative structure and clarity,1,active
+MOD02,C003,Data to Narrative,Translate data into actionable storylines,2,active

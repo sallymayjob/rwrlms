@@ -27,7 +27,7 @@
 Core fields include pedagogical narrative sections (`Hook`, `CoreContent`, `Insight`, `Mission`) and operational metadata (`Status`, `Difficulty`, `WordCount`, `BrandComplianceScore`).
 
 ### Learners
-Tracks learner assignment (`CourseID`), pacing (`CurrentLesson`), and lifecycle (`Status`).
+Tracks learner assignment (`CourseID`), pacing (`CurrentModule`), and lifecycle (`Status`).
 
 ### Submissions
 Event log of learning interactions; used for scoring and progress update.

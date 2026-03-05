@@ -4,7 +4,7 @@
 
 ```text
 RWR LMS Composer
-  └─ exports CSV (Courses, Months, Lessons)
+  └─ exports CSV (Courses, Modules, Lessons)
       └─ uploaded to Google Sheets / Drive
           └─ Google Apps Script Web App
               └─ Slack Slash Commands + Bot Messages
@@ -23,7 +23,7 @@ RWR LMS Composer
    - Router dispatch to command agents.
 
 3. **Data Layer (Google Sheets)**
-   - `Courses`, `Months`, `Lessons`, `Learners`, `Submissions`, `Logs`.
+   - `Courses`, `Modules`, `Lessons`, `Learners`, `Submissions`, `Logs`.
    - Read/write through utility wrappers for consistency.
 
 4. **Drive Import Layer**
@@ -54,6 +54,6 @@ RWR LMS Composer
 1. Slack sends slash command payload.
 2. Apps Script validates request and resolves `user_id`.
 3. Learner record retrieved from `Learners`.
-4. Next lesson identified from `Lessons` by `CurrentLesson` or progression logic.
+4. Next lesson identified from `Lessons` by `CurrentModule` or progression logic.
 5. Slack-formatted lesson content returned.
 6. Logs appended for observability.

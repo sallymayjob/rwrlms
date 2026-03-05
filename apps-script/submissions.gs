@@ -21,17 +21,29 @@ function recordSubmission(userId, lessonId, status, score, method) {
 }
 
 function updateLearnerAfterSubmission(learner, lessonId) {
-  var next = getNextLesson(lessonId, learner.CourseID);
-  var nextLessonId = next ? next.LessonID : lessonId;
   var newProgress = Math.min(100, toNumber(learner.Progress, 0) + CONFIG.DEFAULT_PROGRESS_INCREMENT);
+  var currentModule = learner.CurrentModule || '';
+
+  var nextInModule = getNextPendingLesson(learner.UserID, learner.CourseID, currentModule);
+  var nextModule = currentModule;
+  if (!nextInModule) {
+    nextModule = getNextModuleWithPendingLessons(learner.UserID, learner.CourseID, currentModule) || currentModule;
+  }
+
+  var hasRemaining = !!getNextModuleWithPendingLessons(learner.UserID, learner.CourseID, nextModule);
+  if (!hasRemaining) {
+    newProgress = 100;
+  }
+
+  var newStatus = hasRemaining ? 'active' : 'completed';
 
   updateRowByField(CONFIG.SHEET_NAMES.LEARNERS, 'UserID', learner.UserID, {
-    CurrentLesson: nextLessonId,
+    CurrentModule: nextModule,
     Progress: newProgress,
-    Status: newProgress >= 100 ? 'completed' : 'active'
+    Status: newStatus
   });
 
-  return { nextLessonId: nextLessonId, progress: newProgress };
+  return { nextModule: nextModule, progress: newProgress, status: newStatus };
 }
 
 function quizAgent(payload) {
@@ -62,7 +74,7 @@ function quizAgent(payload) {
 
     return slackEphemeral('✅ Submission saved for `' + parsed.lessonId + '`.' +
       '\nProgress: ' + update.progress + '%.' +
-      '\nNext lesson: `' + update.nextLessonId + '`.' +
+      '\nCurrent module: `' + (update.nextModule || 'N/A') + '`.' +
       '\nUse `/learn` to continue.');
   });
 }

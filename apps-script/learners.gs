@@ -11,7 +11,7 @@ function createLearner(payload) {
     Name: payload.user_name || 'Unknown',
     Email: payload.user_name ? payload.user_name + '@example.com' : '',
     CourseID: '',
-    CurrentLesson: '',
+    CurrentModule: '',
     Progress: 0,
     Status: 'active',
     JoinedDate: nowISO().split('T')[0]
@@ -44,10 +44,10 @@ function enrollmentAgent(payload) {
     var course = courses.find(function (c) { return String(c.CourseID).toUpperCase() === courseId && c.Status === 'active'; });
     if (!course) return slackEphemeral('Course `' + courseId + '` not found or inactive.');
 
-    var firstLesson = getFirstLessonForCourse(courseId);
+    var firstModule = getFirstModuleForCourse(courseId);
     updateRowByField(CONFIG.SHEET_NAMES.LEARNERS, 'UserID', payload.user_id, {
       CourseID: courseId,
-      CurrentLesson: firstLesson ? firstLesson.LessonID : '',
+      CurrentModule: firstModule ? firstModule.ModuleID : '',
       Progress: 0,
       Status: 'active'
     });
@@ -67,7 +67,7 @@ function progressAgent(payload) {
       '*Progress Report*',
       'User: <@' + payload.user_id + '>',
       'Course: ' + (learner.CourseID || 'Not enrolled'),
-      'Current Lesson: ' + (learner.CurrentLesson || 'N/A'),
+      'Current Module: ' + (learner.CurrentModule || 'N/A'),
       'Progress: ' + learner.Progress + '%',
       'Status: ' + learner.Status
     ].join('\n');
@@ -82,7 +82,7 @@ function unenrollAgent(payload) {
 
     updateRowByField(CONFIG.SHEET_NAMES.LEARNERS, 'UserID', payload.user_id, {
       CourseID: '',
-      CurrentLesson: '',
+      CurrentModule: '',
       Progress: 0,
       Status: 'inactive'
     });
