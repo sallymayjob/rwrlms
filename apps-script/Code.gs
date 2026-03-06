@@ -43,6 +43,15 @@ function extractSlackChallenge(e) {
   return '';
 }
 
+
+function detectRequestKind(payload) {
+  if (payload && payload.command) return 'slash_command';
+  if (isWorkflowTriggerPayload(payload)) return 'workflow_trigger';
+  if (payload && payload.payload && payload.payload.type) return 'interactive';
+  if (payload && payload.event) return 'event';
+  return 'unknown';
+}
+
 function doPost(e) {
   // Always prioritize Slack Events URL verification with a minimal fast-path response.
   // This avoids handshake timeout issues caused by downstream auth/logging/parsing errors.
@@ -57,16 +66,22 @@ function doPost(e) {
     var envelope = parseSlackRequestEnvelope(e);
     var payload = envelope.data || {};
 
-    verifySlackRequest(e, envelope);
+    var requestKind = detectRequestKind(payload);
 
-    // Slash commands.
-    if (payload.command) {
+    if (requestKind === 'slash_command' || requestKind === 'interactive' || requestKind === 'event') {
+      verifySlackRequest(e, envelope);
+    }
+
+    if (requestKind === 'slash_command') {
       logSlackRequest(payload);
       return routeCommand(payload);
     }
 
-    // Interactive payloads.
-    if (payload.payload && payload.payload.type) {
+    if (requestKind === 'workflow_trigger') {
+      return routeWorkflow(payload);
+    }
+
+    if (requestKind === 'interactive') {
       logEvent('SLACK_INTERACTIVE', 'Interactive payload received', {
         userId: payload.payload.user && payload.payload.user.id,
         actionType: payload.payload.type
@@ -74,8 +89,7 @@ function doPost(e) {
       return routeInteractive(payload.payload);
     }
 
-    // Events API payloads.
-    if (payload.event) {
+    if (requestKind === 'event') {
       logEvent('SLACK_EVENT', 'Event payload received', {
         type: payload.event.type,
         userId: payload.event.user
@@ -83,7 +97,7 @@ function doPost(e) {
       return slackEphemeral('Event received.');
     }
 
-    return slackEphemeral('Unsupported Slack payload type.');
+    return slackEphemeral('Unsupported payload type.');
   });
 }
 
