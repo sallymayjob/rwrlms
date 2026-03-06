@@ -1,5 +1,79 @@
 /** Submission and achievement handlers. */
 
+var SUBMISSION_IDEMPOTENCY_BUCKET_MINUTES = 5;
+
+function getSubmissionTimeBucket(minutes) {
+  var bucketMinutes = toNumber(minutes, SUBMISSION_IDEMPOTENCY_BUCKET_MINUTES);
+  if (bucketMinutes <= 0) bucketMinutes = SUBMISSION_IDEMPOTENCY_BUCKET_MINUTES;
+
+  var now = new Date();
+  var ms = now.getTime();
+  var bucketMs = bucketMinutes * 60 * 1000;
+  var bucketStart = Math.floor(ms / bucketMs) * bucketMs;
+  return new Date(bucketStart).toISOString();
+}
+
+function buildSubmissionIdempotencyKey(payload, userId, lessonId, status) {
+  var requestId = payload && (payload.request_id || payload.trigger_id || payload.api_app_id || payload.response_url || '');
+  if (requestId) {
+    return ['submit', 'req', requestId].join(':');
+  }
+
+  var bucket = getSubmissionTimeBucket(SUBMISSION_IDEMPOTENCY_BUCKET_MINUTES);
+  return ['submit', userId || '', lessonId || '', status || '', bucket].join(':');
+}
+
+function processSubmissionOnce(payload, learner, lessonId, status, score, method) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+
+  try {
+    var key = buildSubmissionIdempotencyKey(payload, learner.UserID, lessonId, status);
+    var existing = readIdempotencyEntryByKey(key);
+    if (existing) {
+      logEvent('SUBMISSION_DUPLICATE_SUPPRESSED', 'Duplicate submission suppressed', {
+        userId: learner.UserID,
+        command: payload && payload.command,
+        lessonId: lessonId,
+        status: status,
+        idempotencyKey: key
+      });
+
+      return {
+        duplicateSuppressed: true,
+        idempotencyKey: key,
+        progressUpdate: null
+      };
+    }
+
+    recordSubmission(learner.UserID, lessonId, status, score, method);
+    var update = updateLearnerAfterSubmission(learner, lessonId);
+
+    appendIdempotencyEntry({
+      Key: key,
+      CreatedAt: nowISO(),
+      State: 'processed',
+      UserID: learner.UserID,
+      LessonID: lessonId,
+      Status: status,
+      RequestID: payload && (payload.request_id || payload.trigger_id || ''),
+      ContextJSON: JSON.stringify({
+        command: payload && payload.command,
+        responseUrl: payload && payload.response_url,
+        method: method || 'slash_command'
+      })
+    });
+
+    return {
+      duplicateSuppressed: false,
+      idempotencyKey: key,
+      progressUpdate: update
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function parseSubmitText(text) {
   var parts = normalizeWhitespace(text).split(' ');
   return {
@@ -9,14 +83,18 @@ function parseSubmitText(text) {
 }
 
 function recordSubmission(userId, lessonId, status, score, method) {
-  appendRow(CONFIG.SHEET_NAMES.SUBMISSIONS, {
-    SubmissionID: makeId('S'),
-    UserID: userId,
-    LessonID: lessonId,
-    Timestamp: nowISO(),
-    Score: score,
-    Status: status,
-    Method: method || 'slash_command'
+  executeSheetUpdate({
+    action: 'insert',
+    sheetName: CONFIG.SHEET_NAMES.SUBMISSIONS,
+    row: {
+      SubmissionID: makeId('S'),
+      UserID: userId,
+      LessonID: lessonId,
+      Timestamp: nowISO(),
+      Score: score,
+      Status: status,
+      Method: method || 'slash_command'
+    }
   });
 }
 
@@ -37,10 +115,15 @@ function updateLearnerAfterSubmission(learner, lessonId) {
 
   var newStatus = hasRemaining ? 'active' : 'completed';
 
-  updateRowByField(CONFIG.SHEET_NAMES.LEARNERS, 'UserID', learner.UserID, {
-    CurrentModule: nextModule,
-    Progress: newProgress,
-    Status: newStatus
+  executeSheetUpdate({
+    action: 'update',
+    sheetName: CONFIG.SHEET_NAMES.LEARNERS,
+    query: { fieldName: 'UserID', fieldValue: learner.UserID },
+    row: {
+      CurrentModule: nextModule,
+      Progress: newProgress,
+      Status: newStatus
+    }
   });
 
   return { nextModule: nextModule, progress: newProgress, status: newStatus };
@@ -62,14 +145,21 @@ function quizAgent(payload) {
     var lesson = getLessonById(parsed.lessonId);
     if (!lesson) return slackEphemeral('Lesson `' + parsed.lessonId + '` not found.');
 
-    recordSubmission(payload.user_id, parsed.lessonId, 'complete', 100, 'slash_command');
-    var update = updateLearnerAfterSubmission(learner, parsed.lessonId);
+    var result = processSubmissionOnce(payload, learner, parsed.lessonId, 'complete', 100, 'slash_command');
+
+    if (result.duplicateSuppressed) {
+      return slackEphemeral('✅ Duplicate submission suppressed for `' + parsed.lessonId + '`.' +
+        '\nYour previous submission was already processed.');
+    }
+
+    var update = result.progressUpdate;
 
     logEvent('SUBMIT', 'Submission recorded', {
       userId: payload.user_id,
       command: payload.command,
       lessonId: parsed.lessonId,
-      progress: update.progress
+      progress: update.progress,
+      idempotencyKey: result.idempotencyKey
     });
 
     return slackEphemeral('✅ Submission saved for `' + parsed.lessonId + '`.' +
@@ -95,18 +185,12 @@ function certAgent(payload) {
 
 function reportingAgent(payload) {
   return withErrorGuard('reportingAgent', function () {
+    var accessDenied = enforceAdminAccess(payload, 'reportingAgent', 'report_snapshot');
+    if (accessDenied) return accessDenied;
+
     var learners = readTable(CONFIG.SHEET_NAMES.LEARNERS);
     var submissions = readTable(CONFIG.SHEET_NAMES.SUBMISSIONS);
-    var active = learners.filter(function (l) { return String(l.Status).toLowerCase() === 'active'; }).length;
-    var completed = learners.filter(function (l) { return String(l.Status).toLowerCase() === 'completed'; }).length;
-
-    var lines = [
-      '*LMS Report*',
-      'Learners: ' + learners.length,
-      'Active Learners: ' + active,
-      'Completed Learners: ' + completed,
-      'Submissions: ' + submissions.length
-    ];
-    return slackEphemeral(lines.join('\n'));
+    var summary = summarizeLmsState(learners, submissions);
+    return slackEphemeral(formatReportSummaryForSlack(summary));
   });
 }

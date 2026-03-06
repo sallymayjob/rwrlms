@@ -96,7 +96,12 @@ function tutorAgent(payload) {
       }
 
       currentModule = nextModule;
-      updateRowByField(CONFIG.SHEET_NAMES.LEARNERS, 'UserID', payload.user_id, { CurrentModule: currentModule });
+      executeSheetUpdate({
+        action: 'update',
+        sheetName: CONFIG.SHEET_NAMES.LEARNERS,
+        query: { fieldName: 'UserID', fieldValue: payload.user_id },
+        row: { CurrentModule: currentModule }
+      });
       lesson = getNextPendingLesson(payload.user_id, learner.CourseID, currentModule);
     }
 
@@ -110,7 +115,7 @@ function tutorAgent(payload) {
       moduleId: currentModule
     });
 
-    return slackEphemeral('*Module:* ' + currentModule + '\n\n' + lessonToSlackText(lesson));
+    return slackEphemeral(formatLessonCardForSlack(lesson, { heading: '*Module:* ' + currentModule }));
   });
 }
 
