@@ -28,11 +28,12 @@ function processSubmissionOnce(payload, learner, lessonId, status, score, method
   lock.waitLock(5000);
 
   try {
-    var key = buildSubmissionIdempotencyKey(payload, learner.UserID, lessonId, status);
+    var learnerId = getLearnerIdValue(learner);
+    var key = buildSubmissionIdempotencyKey(payload, learnerId, lessonId, status);
     var existing = readIdempotencyEntryByKey(key);
     if (existing) {
       logEvent('SUBMISSION_DUPLICATE_SUPPRESSED', 'Duplicate submission suppressed', {
-        userId: learner.UserID,
+        userId: learnerId,
         command: payload && payload.command,
         lessonId: lessonId,
         status: status,
@@ -46,14 +47,14 @@ function processSubmissionOnce(payload, learner, lessonId, status, score, method
       };
     }
 
-    recordSubmission(learner.UserID, lessonId, status, score, method);
+    recordSubmission(learnerId, lessonId, status, score, method);
     var update = updateLearnerAfterSubmission(learner, lessonId);
 
     appendIdempotencyEntry({
       Key: key,
       CreatedAt: nowISO(),
       State: 'processed',
-      UserID: learner.UserID,
+      UserID: learnerId,
       LessonID: lessonId,
       Status: status,
       RequestID: payload && (payload.request_id || payload.trigger_id || ''),
@@ -99,16 +100,18 @@ function recordSubmission(userId, lessonId, status, score, method) {
 }
 
 function updateLearnerAfterSubmission(learner, lessonId) {
-  var newProgress = Math.min(100, toNumber(learner.Progress, 0) + CONFIG.DEFAULT_PROGRESS_INCREMENT);
-  var currentModule = learner.CurrentModule || '';
+  var learnerId = getLearnerIdValue(learner);
+  var courseId = getLearnerCourseId(learner);
+  var newProgress = Math.min(100, getLearnerProgressPercent(learner) + CONFIG.DEFAULT_PROGRESS_INCREMENT);
+  var currentModule = getLearnerCurrentModule(learner) || '';
 
-  var nextInModule = getNextPendingLesson(learner.UserID, learner.CourseID, currentModule);
+  var nextInModule = getNextPendingLesson(learnerId, courseId, currentModule);
   var nextModule = currentModule;
   if (!nextInModule) {
-    nextModule = getNextModuleWithPendingLessons(learner.UserID, learner.CourseID, currentModule) || currentModule;
+    nextModule = getNextModuleWithPendingLessons(learnerId, courseId, currentModule) || currentModule;
   }
 
-  var hasRemaining = !!getNextModuleWithPendingLessons(learner.UserID, learner.CourseID, nextModule);
+  var hasRemaining = !!getNextModuleWithPendingLessons(learnerId, courseId, nextModule);
   if (!hasRemaining) {
     newProgress = 100;
   }
@@ -118,12 +121,15 @@ function updateLearnerAfterSubmission(learner, lessonId) {
   executeSheetUpdate({
     action: 'update',
     sheetName: CONFIG.SHEET_NAMES.LEARNERS,
-    query: { fieldName: 'UserID', fieldValue: learner.UserID },
-    row: {
-      CurrentModule: nextModule,
-      Progress: newProgress,
-      Status: newStatus
-    }
+    query: {
+      fieldName: resolveHeaderName(CONFIG.SHEET_NAMES.LEARNERS, 'learnerId'),
+      fieldValue: learnerId
+    },
+    row: buildLogicalUpdateRow(CONFIG.SHEET_NAMES.LEARNERS, {
+      currentModule: nextModule,
+      progressPercent: newProgress,
+      status: newStatus
+    })
   });
 
   return { nextModule: nextModule, progress: newProgress, status: newStatus };
@@ -174,9 +180,9 @@ function certAgent(payload) {
     var learner = getLearnerByUserId(payload.user_id);
     if (!learner) return slackEphemeral('Run `/onboard` first.');
 
-    var progress = toNumber(learner.Progress, 0);
+    var progress = getLearnerProgressPercent(learner);
     if (progress >= CONFIG.CERT_MIN_PROGRESS) {
-      return slackEphemeral('🏆 You are certificate-eligible for `' + learner.CourseID + '`!');
+      return slackEphemeral('🏆 You are certificate-eligible for `' + (getLearnerCourseId(learner) || 'your course') + '`!');
     }
 
     return slackEphemeral('Certificate locked. Current progress: ' + progress + '%. Reach 100% to unlock.');

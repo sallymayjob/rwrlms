@@ -327,8 +327,9 @@ function deleteRowByField(name, fieldName, fieldValue) {
   const values = sheet.getDataRange().getValues();
   if (values.length < 2) return false;
   const headers = values[0];
-  const idx = headers.indexOf(fieldName);
-  assert(idx >= 0, 'Field not found: ' + fieldName);
+  const index = validateRequiredHeaders(headers, name);
+  const idx = resolveFieldIndex(index, fieldName);
+  assert(idx >= 0, 'Field not found: ' + fieldName + ' in table ' + name);
 
   for (var r = 1; r < values.length; r++) {
     if (String(values[r][idx]) === String(fieldValue)) {
@@ -337,4 +338,26 @@ function deleteRowByField(name, fieldName, fieldValue) {
     }
   }
   return false;
+}
+
+function resolveFieldIndex(index, fieldName) {
+  if (!index) return -1;
+  if (index.logicalToIndex[fieldName] !== undefined) return index.logicalToIndex[fieldName];
+
+  var normalized = normalizeHeader(fieldName);
+  if (normalized === '') return -1;
+
+  var header = index.headers.find(function (h) { return normalizeHeader(h) === normalized; });
+  if (header !== undefined && index.headerToIndex[header] !== undefined) {
+    return index.headerToIndex[header];
+  }
+
+  var logicalField = Object.keys(index.logicalToHeader).find(function (key) {
+    return normalizeHeader(index.logicalToHeader[key]) === normalized;
+  });
+  if (logicalField && index.logicalToIndex[logicalField] !== undefined) {
+    return index.logicalToIndex[logicalField];
+  }
+
+  return -1;
 }
