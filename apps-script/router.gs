@@ -1,4 +1,4 @@
-/** Slash command router. */
+/** Request routers. Slash-command routes remain isolated from workflow routes. */
 
 function routeCommand(payload) {
   var cmd = payload.command;

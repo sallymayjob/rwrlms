@@ -56,3 +56,46 @@ function logSlackRequest(payload) {
     text: payload.text
   });
 }
+
+function getWorkflowLogContext(request, extra) {
+  var base = {
+    triggerId: request && (request.triggerId || request.trigger_id),
+    triggerType: request && (request.triggerType || request.type || request.request_type),
+    action: request && request.action,
+    sheetName: request && request.sheetName
+  };
+
+  var merged = {};
+  Object.keys(base).forEach(function (key) {
+    if (base[key] !== undefined && base[key] !== null && base[key] !== '') {
+      merged[key] = base[key];
+    }
+  });
+
+  Object.keys(extra || {}).forEach(function (key) {
+    merged[key] = extra[key];
+  });
+
+  return merged;
+}
+
+function logWorkflowTriggerStart(request) {
+  logEvent('WORKFLOW_TRIGGER_START', 'Workflow trigger started', getWorkflowLogContext(request));
+}
+
+function logWorkflowTriggerEnd(request, extra) {
+  logEvent('WORKFLOW_TRIGGER_END', 'Workflow trigger finished', getWorkflowLogContext(request, extra));
+}
+
+function logWorkflowQueryAction(request, extra) {
+  logEvent('WORKFLOW_QUERY_ACTION', 'Workflow query action', getWorkflowLogContext(request, extra));
+}
+
+function logWorkflowFailure(request, reason, extra) {
+  var error = reason;
+  if (!(reason instanceof Error)) {
+    error = new Error(String(reason || 'Unknown workflow failure'));
+  }
+
+  logError('WORKFLOW_FAILURE', error, getWorkflowLogContext(request, extra));
+}
