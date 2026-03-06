@@ -62,34 +62,11 @@ function validateWorkflowTriggerPayload(payload) {
   }
 
   var workflow = payload.workflow || payload.workflowTrigger || payload.workflowStep || {};
-  var action = String(payload.action || workflow.action || '').toLowerCase();
+  var action = normalizeWhitespace(payload.action || workflow.action).toLowerCase();
   if (!action) {
     return {
       ok: false,
       reason: 'Missing workflow action.'
-    };
-  }
-
-  var sheetName = String(payload.sheetName || workflow.sheetName || '');
-  if (!sheetName) {
-    return {
-      ok: false,
-      reason: 'Missing target sheetName.'
-    };
-  }
-
-  if (!isAllowedWorkflowAction(action)) {
-    return {
-      ok: false,
-      reason: 'policy_violation: action_not_allowed'
-    };
-  }
-
-  var allowedSheets = getAllowedSheetsForAction(action);
-  if (allowedSheets.indexOf(sheetName) < 0) {
-    return {
-      ok: false,
-      reason: 'policy_violation: sheet_not_allowed'
     };
   }
 
@@ -99,7 +76,6 @@ function validateWorkflowTriggerPayload(payload) {
       triggerType: String(payload.type || payload.request_type || 'workflow_trigger'),
       triggerId: String(payload.triggerId || payload.trigger_id || workflow.triggerId || makeId('wf')),
       action: action,
-      sheetName: sheetName,
       input: payload.input || workflow.input || {},
       query: payload.query || workflow.query || {},
       output: payload.output || workflow.output || {},
@@ -108,114 +84,215 @@ function validateWorkflowTriggerPayload(payload) {
   };
 }
 
-function isAdminMutationAction(action) {
-  return ['insert', 'update', 'delete', 'upsert'].indexOf(String(action || '').toLowerCase()) >= 0;
+function parseLessonReleaseInput(input) {
+  var lessonId = String(input.lessonId || '').toUpperCase();
+  var reviewerUserId = String(input.reviewerUserId || input.approverUserId || '').trim();
+
+  if (!CONFIG.LESSON_ID_REGEX.test(lessonId)) {
+    throw new Error('Input lessonId must match M00-W00-L00 format.');
+  }
+
+  return {
+    lessonId: lessonId,
+    reviewerUserId: reviewerUserId,
+    notes: String(input.notes || '').trim()
+  };
 }
 
-function enforceWorkflowAdminAccess(request) {
-  if (!isAdminMutationAction(request && request.action)) return null;
+function handleWorkflowOnboardingStart(request) {
+  var input = request.input || {};
+  var userId = String(input.userId || '').trim();
+  if (!userId) {
+    throw new Error('Onboarding requires input.userId.');
+  }
 
-  var userId = request && request.userId;
-  if (!isAdminUser(userId)) {
-    logEvent('ADMIN_ACCESS_DENIED', 'Non-admin attempted workflow mutation action', {
+  var payload = {
+    user_id: userId,
+    user_name: String(input.userName || ''),
+    command: request.output && request.output.command ? request.output.command : '/onboard'
+  };
+
+  var learner = getLearnerByUserId(userId);
+  if (!learner) {
+    learner = createLearner(payload);
+    logEvent('WORKFLOW_ONBOARDING', 'Learner profile created from onboarding workflow.', {
       userId: userId,
-      command: 'workflow_trigger',
       action: request.action,
-      sheetName: request.sheetName,
       triggerId: request.triggerId
     });
 
     return {
-      ok: false,
-      trigger_id: request.triggerId,
-      error: 'Not authorized for admin mutation action.',
-      timestamp: nowISO()
+      workflow: 'onboarding',
+      status: 'completed',
+      learner: learner,
+      message: 'Onboarding complete for <@' + userId + '>. Next step: `/courses` then `/enroll COURSE_ID`.'
     };
   }
 
-  logEvent('ADMIN_ACCESS_GRANTED', 'Admin authorized for workflow mutation action', {
-    userId: userId,
-    command: 'workflow_trigger',
-    action: request.action,
-    sheetName: request.sheetName,
-    triggerId: request.triggerId
-  });
-
-  return null;
+  return {
+    workflow: 'onboarding',
+    status: 'already_exists',
+    learner: learner,
+    message: 'Learner <@' + userId + '> already has a profile. Use `/progress` for current state.'
+  };
 }
 
-function executeWorkflowQuery(request) {
-  var action = request.action;
-  var sheetName = request.sheetName;
-  var input = request.input || {};
+function handleWorkflowLessonReleasePrepare(request) {
+  var parsed = parseLessonReleaseInput(request.input || {});
+  var lesson = getLessonById(parsed.lessonId);
+  if (!lesson) {
+    throw new Error('Lesson `' + parsed.lessonId + '` not found.');
+  }
 
-  logWorkflowQueryAction(request, {
-    phase: 'start',
-    action: action,
-    sheetName: sheetName
+  if (String(lesson.Status).toLowerCase() !== 'draft') {
+    return {
+      workflow: 'lesson_release',
+      stage: 'prepare',
+      status: 'noop',
+      lessonId: parsed.lessonId,
+      currentStatus: lesson.Status,
+      requiresApproval: false,
+      message: 'Lesson `' + parsed.lessonId + '` is `' + lesson.Status + '`, so release prep skipped.'
+    };
+  }
+
+  var approvalToken = makeId('approval');
+  logEvent('WORKFLOW_LESSON_RELEASE_PREPARE', 'Lesson prepared for release approval.', {
+    lessonId: parsed.lessonId,
+    reviewerUserId: parsed.reviewerUserId,
+    approvalToken: approvalToken,
+    triggerId: request.triggerId,
+    notes: parsed.notes
   });
 
-  if (action === 'select') {
-    var rows = readTable(sheetName);
-    var fieldName = request.query && request.query.fieldName;
-    var fieldValue = request.query && request.query.fieldValue;
+  return {
+    workflow: 'lesson_release',
+    stage: 'prepare',
+    status: 'pending_approval',
+    lessonId: parsed.lessonId,
+    currentStatus: lesson.Status,
+    requiresApproval: true,
+    approvalToken: approvalToken,
+    reviewerUserId: parsed.reviewerUserId,
+    message: 'Release preparation complete for `' + parsed.lessonId + '`. Awaiting human approval.'
+  };
+}
 
-    if (fieldName) {
-      rows = rows.filter(function (row) {
-        return String(row[fieldName]) === String(fieldValue);
-      });
-    }
-
-    logWorkflowQueryAction(request, {
-      phase: 'complete',
-      action: action,
-      rowCount: rows.length
-    });
-
-    return {
-      rows: rows,
-      rowCount: rows.length
-    };
+function handleWorkflowLessonReleasePublish(request) {
+  var parsed = parseLessonReleaseInput(request.input || {});
+  var approvedBy = String(request.input.approvedBy || request.input.reviewerUserId || '').trim();
+  if (!approvedBy) {
+    throw new Error('Lesson release publish requires input.approvedBy.');
   }
 
-  if (action === 'insert') {
-    input = sanitizeWorkflowInputForWrite(request);
-    appendRow(sheetName, input);
-    logWorkflowQueryAction(request, {
-      phase: 'complete',
-      action: action,
-      inserted: 1
-    });
+  var updated = updateRowByField(CONFIG.SHEET_NAMES.LESSONS, 'LessonID', parsed.lessonId, {
+    Status: 'active'
+  });
 
-    return {
-      inserted: 1,
-      row: input
-    };
+  if (!updated) {
+    throw new Error('Unable to update lesson `' + parsed.lessonId + '` for release.');
   }
 
-  if (action === 'update') {
-    input = sanitizeWorkflowInputForWrite(request);
-    var fieldNameForUpdate = request.query && request.query.fieldName;
-    var fieldValueForUpdate = request.query && request.query.fieldValue;
+  logEvent('WORKFLOW_LESSON_RELEASE_PUBLISH', 'Lesson released after approval.', {
+    lessonId: parsed.lessonId,
+    approvedBy: approvedBy,
+    triggerId: request.triggerId,
+    notes: parsed.notes
+  });
 
-    if (!fieldNameForUpdate) {
-      throw new Error('Missing query.fieldName for update action.');
-    }
+  return {
+    workflow: 'lesson_release',
+    stage: 'publish',
+    status: 'completed',
+    lessonId: parsed.lessonId,
+    approvedBy: approvedBy,
+    newStatus: 'active',
+    message: 'Lesson `' + parsed.lessonId + '` is now active.'
+  };
+}
 
-    var updated = updateRowByField(sheetName, fieldNameForUpdate, fieldValueForUpdate, input);
-    logWorkflowQueryAction(request, {
-      phase: 'complete',
-      action: action,
-      updated: updated ? 1 : 0
-    });
+function handleWorkflowContentReviewSubmit(request) {
+  var parsed = parseLessonReleaseInput(request.input || {});
+  var submissionId = makeId('review');
 
-    return {
-      updated: updated ? 1 : 0,
-      applied: input
-    };
+  logEvent('WORKFLOW_CONTENT_REVIEW_SUBMIT', 'Content review submitted for human approval.', {
+    lessonId: parsed.lessonId,
+    submissionId: submissionId,
+    reviewerUserId: parsed.reviewerUserId,
+    triggerId: request.triggerId,
+    notes: parsed.notes
+  });
+
+  return {
+    workflow: 'content_review',
+    stage: 'submit',
+    status: 'pending_approval',
+    lessonId: parsed.lessonId,
+    submissionId: submissionId,
+    reviewerUserId: parsed.reviewerUserId,
+    requiresApproval: true,
+    message: 'Review submitted for `' + parsed.lessonId + '`. Waiting for editor approval.'
+  };
+}
+
+function handleWorkflowContentReviewApprove(request) {
+  var parsed = parseLessonReleaseInput(request.input || {});
+  var approvedBy = String(request.input.approvedBy || request.input.reviewerUserId || '').trim();
+  if (!approvedBy) {
+    throw new Error('Content review approval requires input.approvedBy.');
   }
 
-  throw new Error('Unsupported workflow action: ' + action);
+  var updated = updateRowByField(CONFIG.SHEET_NAMES.LESSONS, 'LessonID', parsed.lessonId, {
+    Status: 'approved'
+  });
+
+  if (!updated) {
+    throw new Error('Unable to mark lesson `' + parsed.lessonId + '` approved.');
+  }
+
+  logEvent('WORKFLOW_CONTENT_REVIEW_APPROVE', 'Content approved by human reviewer.', {
+    lessonId: parsed.lessonId,
+    approvedBy: approvedBy,
+    triggerId: request.triggerId,
+    notes: parsed.notes
+  });
+
+  return {
+    workflow: 'content_review',
+    stage: 'approve',
+    status: 'completed',
+    lessonId: parsed.lessonId,
+    approvedBy: approvedBy,
+    newStatus: 'approved',
+    message: 'Content review approved for `' + parsed.lessonId + '`.'
+  };
+}
+
+function handleWorkflowHealthCheck(request) {
+  return {
+    workflow: 'health',
+    status: 'ok',
+    triggerId: request.triggerId,
+    timestamp: nowISO(),
+    message: 'Workflow router is healthy.'
+  };
+}
+
+function executeWorkflowAction(request) {
+  logWorkflowQueryAction(request, {
+    phase: 'start',
+    action: request.action
+  });
+
+  var data = routeWorkflowActionKey(request);
+
+  logWorkflowQueryAction(request, {
+    phase: 'complete',
+    action: request.action,
+    status: data && data.status ? data.status : 'completed'
+  });
+
+  return data;
 }
 
 function buildWorkflowResponse(request, executionResult) {
@@ -225,6 +302,7 @@ function buildWorkflowResponse(request, executionResult) {
     trigger_type: request.triggerType,
     action: request.action,
     data: executionResult,
+    message: executionResult && executionResult.message ? executionResult.message : '',
     output: request.output || {},
     timestamp: nowISO()
   };
@@ -255,20 +333,20 @@ function routeWorkflow(payload) {
   }
 
   try {
-    var executionResult = executeWorkflowQuery(request);
+    var executionResult = executeWorkflowAction(request);
     var response = buildWorkflowResponse(request, executionResult);
     logWorkflowTriggerEnd(request, { ok: true, action: request.action });
     return workflowJsonResponse(response);
   } catch (error) {
     logWorkflowFailure(request, error, {
       stage: 'execution',
-      action: request.action,
-      sheetName: request.sheetName
+      action: request.action
     });
     logWorkflowTriggerEnd(request, { ok: false, action: request.action });
     return workflowJsonResponse({
       ok: false,
       trigger_id: request.triggerId,
+      action: request.action,
       error: String(error && error.message ? error.message : error),
       timestamp: nowISO()
     });
