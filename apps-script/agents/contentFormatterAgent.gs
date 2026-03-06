@@ -3,20 +3,7 @@
 function formatLessonCardForSlack(lesson, options) {
   var opts = options || {};
   var heading = opts.heading || '*Lesson*';
-  if (!lesson) return heading + '\nNo lesson available.';
-
-  var lines = [
-    heading,
-    '*ID:* `' + (lesson.LessonID || 'N/A') + '`',
-    '*Topic:* ' + (lesson.Topic || 'Untitled'),
-    '*Module:* `' + (lesson.Module || 'N/A') + '`'
-  ];
-
-  if (lesson.Content) lines.push('*Content:* ' + lesson.Content);
-  if (lesson.Objective) lines.push('*Objective:* ' + lesson.Objective);
-  if (lesson.DueDate) lines.push('*Due:* ' + lesson.DueDate);
-
-  return lines.join('\n');
+  return formatLessonContentForSlack(lesson, { heading: heading });
 }
 
 function formatReportSummaryForSlack(summary) {
