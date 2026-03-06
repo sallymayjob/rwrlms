@@ -60,29 +60,29 @@ function readTable(name) {
   if (values.length <= 1) return [];
 
   const headers = values[0];
+  validateRequiredHeaders(headers, name);
   return values.slice(1).filter(function (row) {
     return row.join('').trim() !== '';
   }).map(function (row) {
-    const obj = {};
-    headers.forEach(function (h, i) { obj[h] = row[i]; });
-    return obj;
+    return rowToObject(row, headers, name);
   });
 }
 
 function appendRow(name, rowObj) {
   const sheet = getSheetByName(name);
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const row = headers.map(function (h) { return rowObj[h] !== undefined ? rowObj[h] : ''; });
+  const row = objectToRow(rowObj, headers, name);
   sheet.appendRow(row);
 }
 
 function replaceSheetData(name, rows, headers) {
   const sheet = getSheetByName(name);
+  validateRequiredHeaders(headers, name);
   sheet.clearContents();
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   if (rows.length) {
     const values = rows.map(function (row) {
-      return headers.map(function (h) { return row[h] || ''; });
+      return objectToRow(row, headers, name);
     });
     sheet.getRange(2, 1, values.length, headers.length).setValues(values);
   }
@@ -94,16 +94,18 @@ function updateRowByField(name, fieldName, fieldValue, updates) {
   if (values.length < 2) return false;
 
   const headers = values[0];
-  const keyIdx = headers.indexOf(fieldName);
-  assert(keyIdx >= 0, 'Field not found: ' + fieldName);
+  const index = validateRequiredHeaders(headers, name);
+  const keyIdx = resolveFieldIndex(index, fieldName);
+  assert(keyIdx >= 0, 'Field not found: ' + fieldName + ' in table ' + name);
 
   for (var r = 1; r < values.length; r++) {
     if (String(values[r][keyIdx]) === String(fieldValue)) {
+      var rowObj = rowToObject(values[r], headers, name);
       Object.keys(updates).forEach(function (key) {
-        const col = headers.indexOf(key);
-        if (col >= 0) values[r][col] = updates[key];
+        rowObj[key] = updates[key];
       });
-      sheet.getRange(r + 1, 1, 1, headers.length).setValues([values[r]]);
+      var updatedRow = objectToRow(rowObj, headers, name);
+      sheet.getRange(r + 1, 1, 1, headers.length).setValues([updatedRow]);
       return true;
     }
   }
@@ -115,8 +117,9 @@ function deleteRowByField(name, fieldName, fieldValue) {
   const values = sheet.getDataRange().getValues();
   if (values.length < 2) return false;
   const headers = values[0];
-  const idx = headers.indexOf(fieldName);
-  assert(idx >= 0, 'Field not found: ' + fieldName);
+  const index = validateRequiredHeaders(headers, name);
+  const idx = resolveFieldIndex(index, fieldName);
+  assert(idx >= 0, 'Field not found: ' + fieldName + ' in table ' + name);
 
   for (var r = 1; r < values.length; r++) {
     if (String(values[r][idx]) === String(fieldValue)) {
@@ -125,4 +128,26 @@ function deleteRowByField(name, fieldName, fieldValue) {
     }
   }
   return false;
+}
+
+function resolveFieldIndex(index, fieldName) {
+  if (!index) return -1;
+  if (index.logicalToIndex[fieldName] !== undefined) return index.logicalToIndex[fieldName];
+
+  var normalized = normalizeHeader(fieldName);
+  if (normalized === '') return -1;
+
+  var header = index.headers.find(function (h) { return normalizeHeader(h) === normalized; });
+  if (header !== undefined && index.headerToIndex[header] !== undefined) {
+    return index.headerToIndex[header];
+  }
+
+  var logicalField = Object.keys(index.logicalToHeader).find(function (key) {
+    return normalizeHeader(index.logicalToHeader[key]) === normalized;
+  });
+  if (logicalField && index.logicalToIndex[logicalField] !== undefined) {
+    return index.logicalToIndex[logicalField];
+  }
+
+  return -1;
 }
