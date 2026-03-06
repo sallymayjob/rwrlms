@@ -2,39 +2,28 @@
 
 function sendDailyLesson() {
   return withErrorGuard('sendDailyLesson', function () {
-    var learners = readTable(CONFIG.SHEET_NAMES.LEARNERS)
-      .filter(function (l) {
-        return l.Status === 'active' && l.CourseID;
-      });
+    var learners = readTable(CONFIG.SHEET_NAMES.LEARNERS);
+    var reminders = buildDailyLessonReminders(learners, function (learner) {
+      var currentModule = learner.CurrentModule || (getFirstModuleForCourse(learner.CourseID) || {}).ModuleID;
+      return getNextPendingLesson(learner.UserID, learner.CourseID, currentModule);
+    });
 
-    var count = 0;
-    learners.forEach(function (learner) {
+    reminders.forEach(function (reminder) {
       try {
-        var currentModule = learner.CurrentModule || (getFirstModuleForCourse(learner.CourseID) || {}).ModuleID;
-        var lesson = getNextPendingLesson(learner.UserID, learner.CourseID, currentModule);
-        if (!lesson) return;
-
-        postSlackMessage(learner.UserID, '📘 Daily Lesson Reminder\n' + lessonToSlackText(lesson));
-        count++;
+        postSlackMessage(reminder.userId, reminder.message);
       } catch (error) {
-        logError('DAILY_LESSON_DM', error, { userId: learner.UserID });
+        logError('DAILY_LESSON_DM', error, { userId: reminder.userId });
       }
     });
 
-    logEvent('SCHEDULE_DAILY', 'Daily lesson reminders sent', { count: count });
+    logEvent('SCHEDULE_DAILY', 'Daily lesson reminders sent', { count: reminders.length });
   });
 }
 
 function weeklyLeaderboard() {
   return withErrorGuard('weeklyLeaderboard', function () {
-    var learners = readTable(CONFIG.SHEET_NAMES.LEARNERS)
-      .sort(function (a, b) { return toNumber(b.Progress, 0) - toNumber(a.Progress, 0); })
-      .slice(0, 10);
-
-    var lines = ['🏁 *Weekly Leaderboard*'];
-    learners.forEach(function (l, i) {
-      lines.push((i + 1) + '. <@' + l.UserID + '> — ' + l.Progress + '%');
-    });
+    var learners = readTable(CONFIG.SHEET_NAMES.LEARNERS);
+    var lines = buildLeaderboardLines(learners, 10);
 
     // Replace with your team channel ID.
     var channelId = getOptionalScriptProperty('LEADERBOARD_CHANNEL_ID', 'C00000000');

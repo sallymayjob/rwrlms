@@ -129,20 +129,17 @@ function handleWorkflowOnboardingStart(request) {
     };
   }
 
-  return {
-    workflow: 'onboarding',
-    status: 'already_exists',
-    learner: learner,
-    message: 'Learner <@' + userId + '> already has a profile. Use `/progress` for current state.'
-  };
-}
-
-function handleWorkflowLessonReleasePrepare(request) {
-  var parsed = parseLessonReleaseInput(request.input || {});
-  var lesson = getLessonById(parsed.lessonId);
-  if (!lesson) {
-    throw new Error('Lesson `' + parsed.lessonId + '` not found.');
-  }
+  if (action === 'insert') {
+    executeSheetUpdate({
+      action: 'insert',
+      sheetName: sheetName,
+      row: input
+    });
+    logWorkflowQueryAction(request, {
+      phase: 'complete',
+      action: action,
+      inserted: 1
+    });
 
   if (String(lesson.Status).toLowerCase() !== 'draft') {
     return {
@@ -178,12 +175,21 @@ function handleWorkflowLessonReleasePrepare(request) {
   };
 }
 
-function handleWorkflowLessonReleasePublish(request) {
-  var parsed = parseLessonReleaseInput(request.input || {});
-  var approvedBy = String(request.input.approvedBy || request.input.reviewerUserId || '').trim();
-  if (!approvedBy) {
-    throw new Error('Lesson release publish requires input.approvedBy.');
-  }
+    var updateResult = executeSheetUpdate({
+      action: 'update',
+      sheetName: sheetName,
+      query: {
+        fieldName: fieldNameForUpdate,
+        fieldValue: fieldValueForUpdate
+      },
+      row: input
+    });
+    var updated = updateResult.updated > 0;
+    logWorkflowQueryAction(request, {
+      phase: 'complete',
+      action: action,
+      updated: updated ? 1 : 0
+    });
 
   var updated = updateRowByField(CONFIG.SHEET_NAMES.LESSONS, 'LessonID', parsed.lessonId, {
     Status: 'active'
