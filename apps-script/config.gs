@@ -14,7 +14,9 @@ const CONFIG = {
     '/onboard', '/enroll', '/progress', '/learn', '/submit',
     '/cert', '/report', '/gaps', '/courses', '/help', '/unenroll'
   ],
-  LESSON_ID_REGEX: /^M\d{2}-W\d{2}-L\d{2}$/,
+  LESSON_ID_SUFFIX_PRIORITY: ['recap', 'deep'],
+  LESSON_ID_REGEX: /^M\d{2}-W\d{2}-L\d{2}(?:-[A-Za-z0-9]+)?$/,
+  LESSON_ID_FORMAT_DESCRIPTION: 'M##-W##-L## with an optional alphanumeric suffix (for example: M01-W01-L01, M01-W01-L01-Recap, M01-W01-L01-DEEP).',
   SLACK_MAX_TIMESTAMP_SKEW_SEC: 300,
   DEFAULT_PROGRESS_INCREMENT: 5,
   CERT_MIN_PROGRESS: 100,

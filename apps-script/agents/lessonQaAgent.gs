@@ -6,8 +6,9 @@ function qaLessonRecord(lesson) {
     return { valid: false, issues: ['Missing lesson object.'] };
   }
 
-  if (!CONFIG.LESSON_ID_REGEX.test(String(lesson.LessonID || ''))) {
-    issues.push('LessonID is missing or invalid format.');
+  var parsedLessonId = parseLessonId(lesson.LessonID);
+  if (!parsedLessonId) {
+    issues.push('LessonID is missing or invalid. Supported format: ' + CONFIG.LESSON_ID_FORMAT_DESCRIPTION);
   }
 
   if (!String(lesson.Module || '').trim()) {
