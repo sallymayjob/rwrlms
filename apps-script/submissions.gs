@@ -95,6 +95,9 @@ function certAgent(payload) {
 
 function reportingAgent(payload) {
   return withErrorGuard('reportingAgent', function () {
+    var accessDenied = enforceAdminAccess(payload, 'reportingAgent', 'report_snapshot');
+    if (accessDenied) return accessDenied;
+
     var learners = readTable(CONFIG.SHEET_NAMES.LEARNERS);
     var submissions = readTable(CONFIG.SHEET_NAMES.SUBMISSIONS);
     var active = learners.filter(function (l) { return String(l.Status).toLowerCase() === 'active'; }).length;
