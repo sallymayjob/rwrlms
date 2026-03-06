@@ -28,16 +28,27 @@ function parseSlackRequestEnvelope(e) {
 function extractSlackChallenge(e) {
   var rawBody = (e && e.postData && e.postData.contents) || '';
 
-  // Primary path: Events API URL verification payload is JSON.
+  // 1) Apps Script parsed parameter path (covers some webhook/content-type variants).
+  if (e && e.parameter && e.parameter.challenge) {
+    return String(e.parameter.challenge);
+  }
+
+  // 2) Primary path: Events API URL verification payload is JSON.
   var parsed = safeJsonParse(rawBody, null);
   if (parsed && parsed.type === 'url_verification' && parsed.challenge) {
     return String(parsed.challenge);
   }
 
-  // Fallback path: tolerate form-encoded challenge payloads.
+  // 3) Fallback path: tolerate form-encoded challenge payloads.
   var form = parseFormEncoded(rawBody);
   if (form && form.challenge) {
     return String(form.challenge);
+  }
+
+  // 4) Last-resort body sniffing for malformed/atypical payload wrappers.
+  var match = String(rawBody).match(/"challenge"\s*:\s*"([^"]+)"/);
+  if (match && match[1]) {
+    return String(match[1]);
   }
 
   return '';
@@ -57,9 +68,10 @@ function doPost(e) {
   // This avoids handshake timeout issues caused by downstream auth/logging/parsing errors.
   var challenge = extractSlackChallenge(e);
   if (challenge) {
+    // Slack URL verification expects the raw challenge string in the response body.
     return ContentService
-      .createTextOutput(JSON.stringify({ challenge: challenge }))
-      .setMimeType(ContentService.MimeType.JSON);
+      .createTextOutput(challenge)
+      .setMimeType(ContentService.MimeType.TEXT);
   }
 
   return withErrorGuard('doPost', function () {
