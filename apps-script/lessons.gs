@@ -4,7 +4,8 @@ function getCourseModules(courseId) {
   if (!courseId) return [];
   return readTable(CONFIG.SHEET_NAMES.MODULES)
     .filter(function (m) {
-      return String(m.CourseID) === String(courseId) && String(m.Status).toLowerCase() === 'active';
+      return String(readLogicalValue(m, CONFIG.SHEET_NAMES.MODULES, 'courseId', '')) === String(courseId) &&
+      String(readLogicalValue(m, CONFIG.SHEET_NAMES.MODULES, 'status', '')).toLowerCase() === 'active';
     })
     .sort(function (a, b) {
       return toNumber(a.ModuleNumber || a.Sequence, 999) - toNumber(b.ModuleNumber || b.Sequence, 999);
@@ -23,33 +24,37 @@ function lessonSortKey(lessonId) {
 }
 
 function getLessonsForCourse(courseId, moduleId) {
-  var moduleIds = getCourseModules(courseId).map(function (m) { return String(m.ModuleID); });
+  var moduleIds = getCourseModules(courseId).map(function (m) { return String(readLogicalValue(m, CONFIG.SHEET_NAMES.MODULES, 'moduleId', '')); });
   var lessons = readTable(CONFIG.SHEET_NAMES.LESSONS)
-    .filter(function (l) { return String(l.Status).toLowerCase() === 'active'; })
+    .filter(function (l) { return String(readLogicalValue(l, CONFIG.SHEET_NAMES.LESSONS, 'status', '')).toLowerCase() === 'active'; })
     .filter(function (l) {
       if (!courseId) return true;
-      return moduleIds.indexOf(String(l.Module)) >= 0;
+      return moduleIds.indexOf(String(readLogicalValue(l, CONFIG.SHEET_NAMES.LESSONS, 'moduleId', ''))) >= 0;
     })
     .filter(function (l) {
       if (!moduleId) return true;
-      return String(l.Module) === String(moduleId);
+      return String(readLogicalValue(l, CONFIG.SHEET_NAMES.LESSONS, 'moduleId', '')) === String(moduleId);
     })
-    .sort(function (a, b) { return lessonSortKey(a.LessonID) - lessonSortKey(b.LessonID); });
+    .sort(function (a, b) {
+      return lessonSortKey(readLogicalValue(a, CONFIG.SHEET_NAMES.LESSONS, 'lessonId', '')) -
+        lessonSortKey(readLogicalValue(b, CONFIG.SHEET_NAMES.LESSONS, 'lessonId', ''));
+    });
   return lessons;
 }
 
 function getLessonById(lessonId) {
   var lessons = readTable(CONFIG.SHEET_NAMES.LESSONS);
-  return lessons.find(function (l) { return String(l.LessonID) === String(lessonId); }) || null;
+  return lessons.find(function (l) { return String(readLogicalValue(l, CONFIG.SHEET_NAMES.LESSONS, 'lessonId', '')) === String(lessonId); }) || null;
 }
 
 function getCompletedLessonIds(userId) {
   var submissions = readTable(CONFIG.SHEET_NAMES.SUBMISSIONS)
     .filter(function (s) {
-      return String(s.UserID) === String(userId) && ['complete', 'pass', 'done'].indexOf(String(s.Status).toLowerCase()) >= 0;
+      return String(readLogicalValue(s, CONFIG.SHEET_NAMES.SUBMISSIONS, 'learnerId', '')) === String(userId) &&
+        ['complete', 'pass', 'done'].indexOf(String(readLogicalValue(s, CONFIG.SHEET_NAMES.SUBMISSIONS, 'status', '')).toLowerCase()) >= 0;
     });
   var out = {};
-  submissions.forEach(function (s) { out[String(s.LessonID)] = true; });
+  submissions.forEach(function (s) { out[String(readLogicalValue(s, CONFIG.SHEET_NAMES.SUBMISSIONS, 'lessonId', ''))] = true; });
   return out;
 }
 
@@ -57,7 +62,7 @@ function getNextPendingLesson(userId, courseId, moduleId) {
   var completed = getCompletedLessonIds(userId);
   var lessons = getLessonsForCourse(courseId, moduleId);
   for (var i = 0; i < lessons.length; i++) {
-    if (!completed[String(lessons[i].LessonID)]) return lessons[i];
+    if (!completed[String(readLogicalValue(lessons[i], CONFIG.SHEET_NAMES.LESSONS, 'lessonId', ''))]) return lessons[i];
   }
   return null;
 }
@@ -68,12 +73,12 @@ function getNextModuleWithPendingLessons(userId, courseId, currentModuleId) {
 
   var startIndex = 0;
   if (currentModuleId) {
-    var idx = modules.findIndex(function (m) { return String(m.ModuleID) === String(currentModuleId); });
+    var idx = modules.findIndex(function (m) { return String(readLogicalValue(m, CONFIG.SHEET_NAMES.MODULES, 'moduleId', '')) === String(currentModuleId); });
     if (idx >= 0) startIndex = idx;
   }
 
   for (var i = startIndex; i < modules.length; i++) {
-    var modId = modules[i].ModuleID;
+    var modId = readLogicalValue(modules[i], CONFIG.SHEET_NAMES.MODULES, 'moduleId', '');
     if (getNextPendingLesson(userId, courseId, modId)) return modId;
   }
   return null;
@@ -83,14 +88,16 @@ function tutorAgent(payload) {
   return withErrorGuard('tutorAgent', function () {
     var learner = getLearnerByUserId(payload.user_id);
     if (!learner) return slackEphemeral('Run `/onboard` first.');
-    if (!learner.CourseID) return slackEphemeral('Run `/enroll COURSE_ID` first.');
+    var learnerCourseId = getLearnerCourseId(learner);
+    if (!learnerCourseId) return slackEphemeral('Run `/enroll COURSE_ID` first.');
 
-    var currentModule = learner.CurrentModule || (getFirstModuleForCourse(learner.CourseID) || {}).ModuleID;
+    var currentModule = getLearnerCurrentModule(learner) ||
+      readLogicalValue(getFirstModuleForCourse(learnerCourseId) || {}, CONFIG.SHEET_NAMES.MODULES, 'moduleId', '');
     if (!currentModule) return slackEphemeral('No module found for your course.');
 
-    var lesson = getNextPendingLesson(payload.user_id, learner.CourseID, currentModule);
+    var lesson = getNextPendingLesson(payload.user_id, learnerCourseId, currentModule);
     if (!lesson) {
-      var nextModule = getNextModuleWithPendingLessons(payload.user_id, learner.CourseID, currentModule);
+      var nextModule = getNextModuleWithPendingLessons(payload.user_id, learnerCourseId, currentModule);
       if (!nextModule) {
         return slackEphemeral('🎉 You have completed all modules in your course. Use `/cert` to check eligibility.');
       }
@@ -99,10 +106,13 @@ function tutorAgent(payload) {
       executeSheetUpdate({
         action: 'update',
         sheetName: CONFIG.SHEET_NAMES.LEARNERS,
-        query: { fieldName: 'UserID', fieldValue: payload.user_id },
-        row: { CurrentModule: currentModule }
+        query: {
+          fieldName: resolveHeaderName(CONFIG.SHEET_NAMES.LEARNERS, 'learnerId'),
+          fieldValue: payload.user_id
+        },
+        row: buildLogicalUpdateRow(CONFIG.SHEET_NAMES.LEARNERS, { currentModule: currentModule })
       });
-      lesson = getNextPendingLesson(payload.user_id, learner.CourseID, currentModule);
+      lesson = getNextPendingLesson(payload.user_id, learnerCourseId, currentModule);
     }
 
     if (!lesson) return slackEphemeral('No lesson found in your current module.');
@@ -110,8 +120,8 @@ function tutorAgent(payload) {
     logEvent('LEARN', 'Lesson delivered', {
       userId: payload.user_id,
       command: payload.command,
-      lessonId: lesson.LessonID,
-      courseId: learner.CourseID,
+      lessonId: readLogicalValue(lesson, CONFIG.SHEET_NAMES.LESSONS, 'lessonId', ''),
+      courseId: learnerCourseId,
       moduleId: currentModule
     });
 
@@ -122,14 +132,14 @@ function tutorAgent(payload) {
 function catalogAgent(payload) {
   return withErrorGuard('catalogAgent', function () {
     var courses = readTable(CONFIG.SHEET_NAMES.COURSES)
-      .filter(function (c) { return String(c.Status).toLowerCase() === 'active'; });
+      .filter(function (c) { return String(readLogicalValue(c, CONFIG.SHEET_NAMES.COURSES, 'status', '')).toLowerCase() === 'active'; });
 
     if (!courses.length) return slackEphemeral('No active courses available.');
     var lines = ['*Course Catalog*'];
     courses.forEach(function (c) {
-      var courseTitle = c.CourseTitle || c.CourseName || c.CourseID;
+      var courseTitle = readLogicalValue(c, CONFIG.SHEET_NAMES.COURSES, 'courseTitle', readLogicalValue(c, CONFIG.SHEET_NAMES.COURSES, 'courseId', ''));
       var modules = c.TotalModules || c.TotalMonths || c.DurationWeeks || '?';
-      lines.push('• `' + c.CourseID + '` - ' + courseTitle + ' (' + modules + ' modules)');
+      lines.push('• `' + readLogicalValue(c, CONFIG.SHEET_NAMES.COURSES, 'courseId', '') + '` - ' + courseTitle + ' (' + modules + ' modules)');
     });
     lines.push('Use `/enroll COURSE_ID` to join.');
     return slackEphemeral(lines.join('\n'));
@@ -142,8 +152,8 @@ function gapAgent(payload) {
     if (!learner) return slackEphemeral('Run `/onboard` first.');
 
     var completed = getCompletedLessonIds(payload.user_id);
-    var openLessons = getLessonsForCourse(learner.CourseID).filter(function (l) {
-      return !completed[String(l.LessonID)];
+    var openLessons = getLessonsForCourse(getLearnerCourseId(learner)).filter(function (l) {
+      return !completed[String(readLogicalValue(l, CONFIG.SHEET_NAMES.LESSONS, 'lessonId', ''))];
     });
 
     var lines = ['*Skill Gaps by Module*'];
@@ -151,7 +161,7 @@ function gapAgent(payload) {
       lines.push('No open gaps detected. Great job!');
     } else {
       openLessons.slice(0, 5).forEach(function (l) {
-        lines.push('• `' + l.Module + '` / `' + l.LessonID + '` — ' + l.Topic);
+        lines.push('• `' + readLogicalValue(l, CONFIG.SHEET_NAMES.LESSONS, 'moduleId', '') + '` / `' + readLogicalValue(l, CONFIG.SHEET_NAMES.LESSONS, 'lessonId', '') + '` — ' + l.Topic);
       });
       if (openLessons.length > 5) lines.push('…and ' + (openLessons.length - 5) + ' more.');
     }
