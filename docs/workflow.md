@@ -37,4 +37,4 @@ learner_event (submission)
   - `sendDailyLesson()`
   - `weeklyLeaderboard()`
   - `progressReport()`
-- CSV refresh via `importLessonsCSV()` for content updates.
+- CSV refresh for Gemini content now follows gated sequence: `validateLessonsCSVForReview()` → human review post/approval via `approveLessonsCSVImport(...)` → `importLessonsCSV()`.
