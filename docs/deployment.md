@@ -43,13 +43,14 @@ Optional:
 3. Replace `DEPLOYMENT_ID` endpoint placeholders with deployed URL.
 4. Install app to workspace.
 
-## 6) Configure Slash Commands and Workflow Triggers
+## 6) Configure Slash Commands and Workflow Trigger Events
 
-- Confirm each command points to the same Apps Script endpoint.
-- In Slack app settings, configure Workflow Steps so `lms_fetch_lesson` and `lms_record_submission` execute via the Apps Script URL.
+- Confirm each slash command points to the same Apps Script endpoint.
+- Workflow Steps in app manifests are deprecated; do not configure `features.workflow_steps`.
+- Add `workflow_step_execute` to **Event Subscriptions → Bot Events** so workflow step executions are delivered to your Apps Script endpoint.
 - Enable the global shortcut `lms_workflow_start` to launch learner-triggered workflow runs from Slack.
 - Keep workflow callback request targets on the same web app endpoint used for slash commands/interactivity.
-- Reinstall app if scopes, workflow steps, or commands changed.
+- Reinstall app if scopes, bot events, or commands changed.
 - No n8n supervisor is required; Apps Script `doPost` handles slash/event/interactive/workflow routing.
 
 ## 7) Review OAuth Scopes for Workflow Execution
