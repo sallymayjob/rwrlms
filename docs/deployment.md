@@ -24,10 +24,29 @@ Required:
 - `SLACK_VERIFICATION_TOKEN`
 - `SLACK_BOT_TOKEN`
 - `LESSON_CSV_FILE_ID` (for CSV import)
+- `ADMIN_USER_IDS` (comma-separated Slack user IDs allowed to run admin handlers like `/report` and workflow mutation actions)
 
 Optional:
 
 - `LEADERBOARD_CHANNEL_ID`
+
+
+### 3a) Configure Admin Authorization
+
+Admin-only handlers read `ADMIN_USER_IDS` from Script Properties.
+
+- Format: comma-separated Slack user IDs (example: `U01234567,U089ABCDE`)
+- Whitespace is ignored around IDs.
+- If a user is not in `ADMIN_USER_IDS`, admin handlers return an explicit ephemeral denial and no mutation/report action is executed.
+- Access checks are audited in `Logs` using:
+  - `ADMIN_ACCESS_GRANTED`
+  - `ADMIN_ACCESS_DENIED`
+
+Examples:
+
+- `/report` run by non-admin → ephemeral: `🚫 You are not authorized to run /report...`
+- `/report` run by admin → normal report snapshot output.
+- Workflow trigger with `action=insert` or `action=update` and non-admin `user_id` → JSON error `Not authorized for admin mutation action.`
 
 ## 4) Deploy as Web App
 

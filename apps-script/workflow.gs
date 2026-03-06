@@ -102,9 +102,46 @@ function validateWorkflowTriggerPayload(payload) {
       sheetName: sheetName,
       input: payload.input || workflow.input || {},
       query: payload.query || workflow.query || {},
-      output: payload.output || workflow.output || {}
+      output: payload.output || workflow.output || {},
+      userId: String(payload.user_id || payload.userId || workflow.user_id || workflow.userId || '')
     }
   };
+}
+
+function isAdminMutationAction(action) {
+  return ['insert', 'update', 'delete', 'upsert'].indexOf(String(action || '').toLowerCase()) >= 0;
+}
+
+function enforceWorkflowAdminAccess(request) {
+  if (!isAdminMutationAction(request && request.action)) return null;
+
+  var userId = request && request.userId;
+  if (!isAdminUser(userId)) {
+    logEvent('ADMIN_ACCESS_DENIED', 'Non-admin attempted workflow mutation action', {
+      userId: userId,
+      command: 'workflow_trigger',
+      action: request.action,
+      sheetName: request.sheetName,
+      triggerId: request.triggerId
+    });
+
+    return {
+      ok: false,
+      trigger_id: request.triggerId,
+      error: 'Not authorized for admin mutation action.',
+      timestamp: nowISO()
+    };
+  }
+
+  logEvent('ADMIN_ACCESS_GRANTED', 'Admin authorized for workflow mutation action', {
+    userId: userId,
+    command: 'workflow_trigger',
+    action: request.action,
+    sheetName: request.sheetName,
+    triggerId: request.triggerId
+  });
+
+  return null;
 }
 
 function executeWorkflowQuery(request) {
@@ -210,6 +247,13 @@ function routeWorkflow(payload) {
   var request = validation.normalized;
 
   logWorkflowTriggerStart(request);
+
+  var adminAccessDenied = enforceWorkflowAdminAccess(request);
+  if (adminAccessDenied) {
+    logWorkflowTriggerEnd(request, { ok: false, action: request.action, reason: 'admin_access_denied' });
+    return workflowJsonResponse(adminAccessDenied);
+  }
+
   try {
     var executionResult = executeWorkflowQuery(request);
     var response = buildWorkflowResponse(request, executionResult);
