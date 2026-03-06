@@ -43,13 +43,40 @@ Optional:
 3. Replace `DEPLOYMENT_ID` endpoint placeholders with deployed URL.
 4. Install app to workspace.
 
-## 6) Configure Slash Commands and Workflow Triggers
 
-- Confirm each command points to the same Apps Script endpoint.
-- In Slack app settings, configure Workflow Steps so `lms_fetch_lesson` and `lms_record_submission` execute via the Apps Script URL.
+### 5a) Configure Agents & AI Apps (Optional, UI-only)
+
+If you enable **Agent or Assistant** in Slack (as shown in your screenshot), add the following in the Slack app admin UI:
+
+1. Go to **Agents & AI Apps** in your app settings.
+2. Toggle **Agent or Assistant** to ON.
+3. In **Agent or Assistant Overview**, enter a short summary of what the assistant can/can't do.
+4. In **Suggested Prompts**, choose:
+   - **Fixed**: up to 4 hardcoded prompts, or
+   - **Dynamic**: provide prompts from your API endpoint.
+5. Click **Save**, then reinstall/update the app in your workspace if prompted.
+
+Recommended starter overview for this project:
+
+- “Agentic LMS helps learners discover courses, enroll, fetch next lessons, submit completions, and check progress/certification. It cannot modify Slack workspace settings or access data outside configured LMS sheets.”
+
+Recommended fixed prompts (example):
+
+- “Show my available courses”
+- “Enroll me in C001”
+- “Give me my next lesson”
+- “Show my progress and certification status”
+
+> Note: These **Agents & AI Apps** settings are configured from Slack's UI and are not currently managed in this repository's manifest file.
+
+## 6) Configure Slash Commands and Workflow Trigger Events
+
+- Confirm each slash command points to the same Apps Script endpoint.
+- Workflow Steps in app manifests are deprecated; do not configure `features.workflow_steps`.
+- Add `workflow_step_execute` to **Event Subscriptions → Bot Events** so workflow step executions are delivered to your Apps Script endpoint.
 - Enable the global shortcut `lms_workflow_start` to launch learner-triggered workflow runs from Slack.
 - Keep workflow callback request targets on the same web app endpoint used for slash commands/interactivity.
-- Reinstall app if scopes, workflow steps, or commands changed.
+- Reinstall app if scopes, bot events, or commands changed.
 - No n8n supervisor is required; Apps Script `doPost` handles slash/event/interactive/workflow routing.
 
 ## 7) Review OAuth Scopes for Workflow Execution
@@ -127,5 +154,11 @@ Run this checklist after trigger provisioning changes:
 ## Troubleshooting
 
 - 401/invalid signature: verify signing secret and timestamp handling.
+- Event Subscriptions URL verification failing (`challenge` not accepted): ensure `doPost(e)` returns the **raw challenge string** immediately (text/plain), not a wrapped JSON object, and that your Event Request URL points to the latest `/exec` deployment.
 - Empty responses: check script execution logs and `Logs` tab.
+- Slash command `dispatch_failed` (for example `/cert`):
+  - Confirm that **every** slash command (including `/cert`) points to the same deployed `/exec` URL.
+  - In Apps Script Deployments, ensure the deployment is current and accessible as `Anyone`.
+  - Reinstall the Slack app after command URL or scope/event updates.
+  - Check Apps Script **Executions** for timeout/errors and verify `SPREADSHEET_ID` and Slack secrets are set in Script Properties.
 - Missing lessons: validate CSV headers and `LESSON_CSV_FILE_ID`.

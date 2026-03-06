@@ -1,8 +1,35 @@
 /** Learner-related operations and command agents. */
 
 function getLearnerByUserId(userId) {
-  const learners = readTable(CONFIG.SHEET_NAMES.LEARNERS);
-  return learners.find(function (l) { return String(l.UserID) === String(userId); }) || null;
+  var targetId = String(userId || '').trim();
+  if (!targetId) return null;
+
+  // Fast path: exact row lookup by UserID to keep slash command responses under Slack's timeout.
+  try {
+    var sheet = getSheetByName(CONFIG.SHEET_NAMES.LEARNERS);
+    var lastRow = sheet.getLastRow();
+    var lastCol = sheet.getLastColumn();
+    if (lastRow <= 1 || lastCol === 0) return null;
+
+    var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+    var userIdCol = headers.indexOf('UserID');
+    if (userIdCol < 0) {
+      throw new Error('Learners sheet missing UserID column.');
+    }
+
+    var range = sheet.getRange(2, userIdCol + 1, Math.max(0, lastRow - 1), 1);
+    var match = range.createTextFinder(targetId).matchEntireCell(true).findNext();
+    if (!match) return null;
+
+    var rowValues = sheet.getRange(match.getRow(), 1, 1, lastCol).getValues()[0];
+    var learner = {};
+    headers.forEach(function (h, i) { learner[h] = rowValues[i]; });
+    return learner;
+  } catch (error) {
+    // Fallback path preserves legacy behavior if TextFinder lookup fails for any reason.
+    var learners = readTable(CONFIG.SHEET_NAMES.LEARNERS);
+    return learners.find(function (l) { return String(l.UserID) === targetId; }) || null;
+  }
 }
 
 function createLearner(payload) {
