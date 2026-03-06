@@ -12,6 +12,47 @@ function isWorkflowTriggerPayload(payload) {
   return !!(payload.workflowTrigger || payload.workflowStep || payload.workflow);
 }
 
+
+function getWorkflowPolicy() {
+  return CONFIG.WORKFLOW_POLICY || {};
+}
+
+function getAllowedSheetsForAction(action) {
+  var policy = getWorkflowPolicy();
+  var sheetsByAction = policy.SHEETS_BY_ACTION || {};
+  return sheetsByAction[action] || [];
+}
+
+function getAllowedFieldsForActionAndSheet(action, sheetName) {
+  var policy = getWorkflowPolicy();
+  var fieldsByActionAndSheet = policy.FIELDS_BY_ACTION_AND_SHEET || {};
+  var fieldsBySheet = fieldsByActionAndSheet[action] || {};
+  return fieldsBySheet[sheetName] || null;
+}
+
+function isAllowedWorkflowAction(action) {
+  var policy = getWorkflowPolicy();
+  var actions = policy.ACTIONS || [];
+  return actions.indexOf(action) >= 0;
+}
+
+function sanitizeWorkflowInputForWrite(request) {
+  var input = request.input || {};
+  var allowedFields = getAllowedFieldsForActionAndSheet(request.action, request.sheetName);
+
+  if (!allowedFields || !allowedFields.length) {
+    return input;
+  }
+
+  var sanitized = {};
+  Object.keys(input).forEach(function (key) {
+    if (allowedFields.indexOf(key) >= 0) {
+      sanitized[key] = input[key];
+    }
+  });
+
+  return sanitized;
+}
 function validateWorkflowTriggerPayload(payload) {
   if (!isWorkflowTriggerPayload(payload)) {
     return {
@@ -34,6 +75,21 @@ function validateWorkflowTriggerPayload(payload) {
     return {
       ok: false,
       reason: 'Missing target sheetName.'
+    };
+  }
+
+  if (!isAllowedWorkflowAction(action)) {
+    return {
+      ok: false,
+      reason: 'policy_violation: action_not_allowed'
+    };
+  }
+
+  var allowedSheets = getAllowedSheetsForAction(action);
+  if (allowedSheets.indexOf(sheetName) < 0) {
+    return {
+      ok: false,
+      reason: 'policy_violation: sheet_not_allowed'
     };
   }
 
@@ -86,6 +142,7 @@ function executeWorkflowQuery(request) {
   }
 
   if (action === 'insert') {
+    input = sanitizeWorkflowInputForWrite(request);
     appendRow(sheetName, input);
     logWorkflowQueryAction(request, {
       phase: 'complete',
@@ -100,6 +157,7 @@ function executeWorkflowQuery(request) {
   }
 
   if (action === 'update') {
+    input = sanitizeWorkflowInputForWrite(request);
     var fieldNameForUpdate = request.query && request.query.fieldName;
     var fieldValueForUpdate = request.query && request.query.fieldValue;
 
@@ -138,8 +196,10 @@ function buildWorkflowResponse(request, executionResult) {
 function routeWorkflow(payload) {
   var validation = validateWorkflowTriggerPayload(payload);
   if (!validation.ok) {
-    logWorkflowFailure(payload, validation.reason, {
-      stage: 'validation'
+    var isPolicyViolation = String(validation.reason || '').indexOf('policy_violation') === 0;
+    logWorkflowFailure(payload, isPolicyViolation ? 'policy_violation' : validation.reason, {
+      stage: 'validation',
+      detail: validation.reason
     });
     return workflowJsonResponse({
       ok: false,
