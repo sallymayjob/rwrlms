@@ -44,23 +44,26 @@ function startScheduledOperation(operationName, operationFn) {
 function runDailyLessonOperation(meta) {
   var learners = readTable(CONFIG.SHEET_NAMES.LEARNERS)
     .filter(function (l) {
-      return l.Status === 'active' && l.CourseID;
+      return getLearnerStatus(l, '').toLowerCase() === 'active' && getLearnerCourseId(l);
     });
 
   var sentCount = 0;
   var failedCount = 0;
   learners.forEach(function (learner) {
     try {
-      var currentModule = learner.CurrentModule || (getFirstModuleForCourse(learner.CourseID) || {}).ModuleID;
-      var lesson = getNextPendingLesson(learner.UserID, learner.CourseID, currentModule);
+      var learnerId = getLearnerIdValue(learner);
+      var courseId = getLearnerCourseId(learner);
+      var currentModule = getLearnerCurrentModule(learner) ||
+        readLogicalValue(getFirstModuleForCourse(courseId) || {}, CONFIG.SHEET_NAMES.MODULES, 'moduleId', '');
+      var lesson = getNextPendingLesson(learnerId, courseId, currentModule);
       if (!lesson) return;
 
-      postSlackMessage(learner.UserID, '📘 Daily Lesson Reminder\n' + lessonToSlackText(lesson));
+      postSlackMessage(learnerId, '📘 Daily Lesson Reminder\n' + lessonToSlackText(lesson));
       sentCount++;
     } catch (error) {
       failedCount++;
       logError('DAILY_LESSON_DM', error, {
-        userId: learner.UserID,
+        userId: getLearnerIdValue(learner),
         operationId: meta.operationId,
         operation: meta.operationName
       });
@@ -84,12 +87,12 @@ function runDailyLessonOperation(meta) {
 
 function runWeeklyLeaderboardOperation(meta) {
   var learners = readTable(CONFIG.SHEET_NAMES.LEARNERS)
-    .sort(function (a, b) { return toNumber(b.Progress, 0) - toNumber(a.Progress, 0); })
+    .sort(function (a, b) { return getLearnerProgressPercent(b) - getLearnerProgressPercent(a); })
     .slice(0, 10);
 
   var lines = ['🏁 *Weekly Leaderboard*'];
   learners.forEach(function (l, i) {
-    lines.push((i + 1) + '. <@' + l.UserID + '> — ' + l.Progress + '%');
+    lines.push((i + 1) + '. <@' + getLearnerIdValue(l) + '> — ' + getLearnerProgressPercent(l) + '%');
   });
 
   var channelId = getLeaderboardChannelId();
@@ -109,10 +112,10 @@ function runWeeklyLeaderboardOperation(meta) {
 }
 
 function runWeeklyProgressReportOperation(meta) {
-  var learners = readTable(CONFIG.SHEET_NAMES.LEARNERS);
+  var learners = readTable(CONFIG.SHEET_NAMES.LEARNERS) || [];
   var avg = 0;
   if (learners.length) {
-    var total = learners.reduce(function (sum, l) { return sum + toNumber(l.Progress, 0); }, 0);
+    var total = learners.reduce(function (sum, l) { return sum + getLearnerProgressPercent(l); }, 0);
     avg = Math.round(total / learners.length);
   }
 
