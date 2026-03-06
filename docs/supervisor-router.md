@@ -1,40 +1,33 @@
-# Supervisor Router in Apps Script (n8n-free)
+# Supervisor Router in Apps Script
 
-This LMS uses a single Apps Script `doPost(e)` endpoint as the supervisor router.
+This LMS uses Apps Script `doPost(e)` as the workflow IO router behind Slack Workflow Builder.
 
-## Why
+## Orchestration Context
 
-- Keeps the platform fully serverless within Google Apps Script + Sheets.
-- Avoids external orchestration layers (including n8n).
-- Preserves Slack command responsiveness and security checks.
+The router operates inside the canonical sequence:
+
+1. `learner_event` or `database_event` trigger fires.
+2. Slack Workflow Builder starts workflow step(s).
+3. Workflow invokes Apps Script endpoint.
+4. Apps Script executes Google Sheets read/write and returns status/output.
 
 ## Routing Behavior
 
-1. Parse inbound payload envelope from either:
-   - `application/x-www-form-urlencoded`
-   - `application/json`
-2. Verify request:
-   - Prefer Slack signature + timestamp verification when headers are available.
-   - Fallback to verification token check when Apps Script hides headers.
-3. Route by payload type:
-   - `type=url_verification` + `challenge`: return challenge JSON.
-   - `command`: dispatch to command router (`/onboard`, `/learn`, etc.).
-   - `payload` (interactive): acknowledge and log.
-   - `event`: acknowledge and log.
+1. Parse inbound workflow payload envelope (`application/json` or form-encoded).
+2. Verify request authenticity/freshness (signature/token depending on available headers).
+3. Route by action key:
+   - `workflow.query`: read operations and computed lookup responses.
+   - `workflow.write`: mutation operations plus audit logging.
+   - `workflow.health`: lightweight status check.
+4. Return structured JSON payload to Slack Workflow Builder step response.
 
-## Command Surface
+## Entrypoints and Trigger Names
 
-- `/onboard`
-- `/enroll`
-- `/progress`
-- `/learn`
-- `/submit`
-- `/cert`
-- `/report`
-- `/gaps`
-- `/courses`
-- `/help`
-- `/unenroll`
+- **Trigger names**: `learner_event`, `database_event`
+- **Apps Script entrypoint**: `doPost(e)`
+- **Action dispatch keys**: `workflow.query`, `workflow.write`, `workflow.health`
+
+These names should remain consistent with `architecture.md`, `docs/system-architecture.md`, and `docs/workflow.md`.
 
 ## Security Notes
 

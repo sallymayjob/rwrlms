@@ -1,42 +1,39 @@
 # Workflow
 
-## Learner Journey
+## Canonical Event-to-IO Flow
 
-1. User runs `/onboard`.
-2. User runs `/courses` to inspect options.
-3. User runs `/enroll COURSE_ID`.
-4. User runs `/learn` to receive the current lesson.
-5. User runs `/submit LESSON_ID complete`.
-6. Progress is updated and learners advance through lessons inside the active module, then to the next module.
-7. User checks `/progress`, `/gaps`, and `/cert` as needed.
+The platform uses this sequence for all automated learner/data operations:
 
-## Lesson Delivery Flow
+1. `learner_event` or `database_event` fires.
+2. Slack Workflow Builder starts workflow step(s).
+3. Workflow calls Apps Script `doPost(e)`.
+4. Apps Script performs Google Sheets duplex read/write.
+5. Apps Script returns status/output to the workflow.
+
+See `architecture.md` for the canonical data-flow diagram.
+
+## Learner Journey (Logical)
+
+1. Learner action or state change emits `learner_event`.
+2. Workflow step requests learner/course state via `workflow.query`.
+3. Apps Script reads `Learners`, `Courses`, `Modules`, `Lessons`.
+4. Workflow determines next action and may issue `workflow.write`.
+5. Apps Script writes updates (for example to `Submissions`, `Learners`, `Logs`) and returns completion status.
+
+## Submission Progression Flow
 
 ```text
-/learn
-  -> find Learner by UserID
-  -> resolve CurrentModule
-  -> fetch Lesson row
-  -> format Slack micro-lesson
-  -> return ephemeral response
-```
-
-## Submission Flow
-
-```text
-/submit M03-W02-L04 complete
-  -> validate format + lesson existence
-  -> append Submissions row
-  -> increment learner progress
-  -> keep learner in current module until all module lessons are done
-  -> advance CurrentModule to next module when applicable
-  -> return confirmation
+learner_event (submission)
+  -> Slack Workflow Builder step sequence
+  -> Apps Script doPost(e): workflow.query (validate lesson + learner state)
+  -> Apps Script doPost(e): workflow.write (append Submissions, update Learners)
+  -> status/output returned to workflow
 ```
 
 ## Admin / Ops Flow
 
-- `/report` gives snapshot totals.
-- Scheduled triggers:
+- Report and progress operations can emit `database_event` after batch updates.
+- Scheduled triggers still support:
   - `sendDailyLesson()`
   - `weeklyLeaderboard()`
   - `progressReport()`
