@@ -17,10 +17,46 @@ function getFirstModuleForCourse(courseId) {
   return modules.length ? modules[0] : null;
 }
 
+function parseLessonId(lessonId) {
+  var rawId = String(lessonId || '').trim();
+  var m = rawId.match(/^M(\d{2})-W(\d{2})-L(\d{2})(?:-([A-Za-z0-9]+))?$/);
+  if (!m) return null;
+
+  var moduleNumber = Number(m[1]);
+  var weekNumber = Number(m[2]);
+  var lessonNumber = Number(m[3]);
+  var suffixRaw = m[4] || '';
+  var suffixNormalized = suffixRaw.toLowerCase();
+  var suffixPriority = Array.isArray(CONFIG.LESSON_ID_SUFFIX_PRIORITY) ? CONFIG.LESSON_ID_SUFFIX_PRIORITY : [];
+  var suffixPriorityIndex = suffixPriority.indexOf(suffixNormalized);
+  var suffixRank = suffixRaw ? (suffixPriorityIndex >= 0 ? suffixPriorityIndex + 1 : suffixPriority.length + 1) : 0;
+
+  return {
+    raw: rawId,
+    module: moduleNumber,
+    week: weekNumber,
+    lesson: lessonNumber,
+    suffix: suffixRaw,
+    suffixNormalized: suffixNormalized,
+    suffixRank: suffixRank
+  };
+}
+
 function lessonSortKey(lessonId) {
-  var m = lessonId.match(/^M(\d{2})-W(\d{2})-L(\d{2})$/);
-  if (!m) return Number.MAX_SAFE_INTEGER;
-  return Number(m[1]) * 10000 + Number(m[2]) * 100 + Number(m[3]);
+  var parsed = parseLessonId(lessonId);
+  if (!parsed) return '9999999999~';
+
+  function pad(n) {
+    return String(n).padStart(2, '0');
+  }
+
+  return [
+    pad(parsed.module),
+    pad(parsed.week),
+    pad(parsed.lesson),
+    pad(parsed.suffixRank),
+    parsed.suffixNormalized
+  ].join('-');
 }
 
 function getLessonsForCourse(courseId, moduleId) {
@@ -36,8 +72,11 @@ function getLessonsForCourse(courseId, moduleId) {
       return String(readLogicalValue(l, CONFIG.SHEET_NAMES.LESSONS, 'moduleId', '')) === String(moduleId);
     })
     .sort(function (a, b) {
-      return lessonSortKey(readLogicalValue(a, CONFIG.SHEET_NAMES.LESSONS, 'lessonId', '')) -
-        lessonSortKey(readLogicalValue(b, CONFIG.SHEET_NAMES.LESSONS, 'lessonId', ''));
+      var aKey = lessonSortKey(a.LessonID);
+      var bKey = lessonSortKey(b.LessonID);
+      if (aKey < bKey) return -1;
+      if (aKey > bKey) return 1;
+      return 0;
     });
   return lessons;
 }
