@@ -1,0 +1,31 @@
+/** Pure content formatting helpers. */
+
+function formatLessonCardForSlack(lesson, options) {
+  var opts = options || {};
+  var heading = opts.heading || '*Lesson*';
+  if (!lesson) return heading + '\nNo lesson available.';
+
+  var lines = [
+    heading,
+    '*ID:* `' + (lesson.LessonID || 'N/A') + '`',
+    '*Topic:* ' + (lesson.Topic || 'Untitled'),
+    '*Module:* `' + (lesson.Module || 'N/A') + '`'
+  ];
+
+  if (lesson.Content) lines.push('*Content:* ' + lesson.Content);
+  if (lesson.Objective) lines.push('*Objective:* ' + lesson.Objective);
+  if (lesson.DueDate) lines.push('*Due:* ' + lesson.DueDate);
+
+  return lines.join('\n');
+}
+
+function formatReportSummaryForSlack(summary) {
+  var model = summary || {};
+  return [
+    '*LMS Report*',
+    'Learners: ' + toNumber(model.learners, 0),
+    'Active Learners: ' + toNumber(model.activeLearners, 0),
+    'Completed Learners: ' + toNumber(model.completedLearners, 0),
+    'Submissions: ' + toNumber(model.submissions, 0)
+  ].join('\n');
+}
