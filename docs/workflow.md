@@ -7,30 +7,28 @@ The platform uses this sequence for all automated learner/data operations:
 1. `learner_event` or `database_event` fires.
 2. Slack Workflow Builder starts workflow step(s).
 3. Workflow calls Apps Script `doPost(e)`.
-4. Apps Script performs Google Sheets duplex read/write.
-5. Apps Script returns status/output to the workflow.
+4. Apps Script dispatches to workflow action handlers by action key.
+5. Apps Script performs Google Sheets duplex read/write and returns structured outputs.
 
 See `architecture.md` for the canonical data-flow diagram.
 
-## Learner Journey (Logical)
+## Workflow Action Keys and Handler Mapping
 
-1. Learner action or state change emits `learner_event`.
-2. Workflow step requests learner/course state via `workflow.query`.
-3. Apps Script reads `Learners`, `Courses`, `Modules`, `Lessons`.
-4. Workflow determines next action and may issue `workflow.write`.
-5. Apps Script writes updates (for example to `Submissions`, `Learners`, `Logs`) and returns completion status.
+Dedicated Apps Script handlers (in `apps-script/workflow.gs`) are mapped through `routeWorkflowActionKey` in `apps-script/router.gs`.
 
-## Submission Progression Flow
+| Action key | Handler | Purpose |
+| --- | --- | --- |
+| `workflow.onboarding.start` | `handleWorkflowOnboardingStart` | Create/check learner profile and return onboarding next steps. |
+| `workflow.lesson_release.prepare` | `handleWorkflowLessonReleasePrepare` | Validate lesson release packet and open human approval gate. |
+| `workflow.lesson_release.publish` | `handleWorkflowLessonReleasePublish` | Publish lesson after explicit human approval. |
+| `workflow.content_review.submit` | `handleWorkflowContentReviewSubmit` | Submit review request into approval queue. |
+| `workflow.content_review.approve` | `handleWorkflowContentReviewApprove` | Apply final approval status from human reviewer. |
+| `workflow.health` | `handleWorkflowHealthCheck` | Lightweight router health check for operations. |
 
-```text
-learner_event (submission)
-  -> Slack Workflow Builder step sequence
-  -> Apps Script doPost(e): workflow.query (validate lesson + learner state)
-  -> Apps Script doPost(e): workflow.write (append Submissions, update Learners)
-  -> status/output returned to workflow
-```
+## 1) Onboarding Flow
 
-## Admin / Ops Flow
+**Trigger point**
+- New learner enters from `/onboard` slash command (shortcut trigger) or admin/workflow trigger event.
 
 - Report and progress operations can emit `database_event` after batch updates.
 - Scheduled triggers still support:
