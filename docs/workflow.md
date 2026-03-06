@@ -12,6 +12,61 @@ The platform uses this sequence for all automated learner/data operations:
 
 See `architecture.md` for the canonical data-flow diagram.
 
+## Workflow Action Contract (Policy-Enforced)
+
+`validateWorkflowTriggerPayload(payload)` accepts only a bounded action/sheet policy and rejects everything else.
+
+### Required request shape
+
+```json
+{
+  "type": "workflow_trigger",
+  "action": "select | insert | update",
+  "sheetName": "<allowed sheet>",
+  "query": {
+    "fieldName": "optional for select, required for update",
+    "fieldValue": "optional"
+  },
+  "input": {
+    "<field>": "<value>"
+  },
+  "output": {}
+}
+```
+
+### Allowed actions
+
+- `select`
+- `insert`
+- `update`
+
+### Allowed target sheets per action
+
+- `select`: `Learners`, `Submissions`, `Courses`, `Modules`, `Lessons`, `Logs`
+- `insert`: `Learners`, `Submissions`, `Logs`
+- `update`: `Learners`, `Submissions`
+
+### Write field allowlist behavior
+
+For write actions (`insert`, `update`), Apps Script enforces a field policy before touching Sheets:
+
+- unknown/disallowed keys in `input` are dropped
+- only configured fields are passed to `appendRow` / `updateRowByField`
+
+Configured write field allowlists:
+
+- `insert`
+  - `Learners`: `UserID`, `Name`, `Email`, `CourseID`, `CurrentModule`, `Progress`, `Status`, `JoinedDate`
+  - `Submissions`: `SubmissionID`, `UserID`, `LessonID`, `Timestamp`, `Score`, `Status`, `Method`
+  - `Logs`: `Timestamp`, `Level`, `EventType`, `UserID`, `Command`, `Message`, `ContextJSON`
+- `update`
+  - `Learners`: `CourseID`, `CurrentModule`, `Progress`, `Status`, `Name`, `Email`
+  - `Submissions`: `Score`, `Status`, `Method`
+
+### Policy violations
+
+Blocked action/sheet combinations are rejected during validation and logged as workflow failures with reason `policy_violation`.
+
 ## Learner Journey (Logical)
 
 1. Learner action or state change emits `learner_event`.
