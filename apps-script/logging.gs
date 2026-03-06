@@ -1,20 +1,68 @@
 /** Logging helpers for auditing and diagnostics. */
 
+var LOGS_CANONICAL_HEADERS = ['Timestamp', 'Level', 'EventType', 'UserID', 'Command', 'Message', 'ContextJSON'];
+
+/**
+ * Header aliases used for migration notes and header normalization guidance.
+ *
+ * Deprecated -> canonical:
+ * - CourseID      -> EnrollmentCourseID
+ * - CurrentModule -> ActiveModuleID
+ * - Progress      -> CompletionPercent
+ * - UserID        -> SlackUserID
+ * - CoreContent   -> Explanation
+ * - Mission       -> PracticeTask
+ */
+var CANONICAL_HEADER_ALIASES = {
+  courseid: 'EnrollmentCourseID',
+  currentmodule: 'ActiveModuleID',
+  progress: 'CompletionPercent',
+  userid: 'SlackUserID',
+  corecontent: 'Explanation',
+  mission: 'PracticeTask'
+};
+
+function normalizeHeaderToken(header) {
+  return String(header || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+}
+
+function normalizeObjectKeys(input) {
+  var normalized = {};
+  Object.keys(input || {}).forEach(function (key) {
+    normalized[normalizeHeaderToken(key)] = input[key];
+  });
+  return normalized;
+}
+
 function ensureLogsSheet() {
   var spreadsheet = getSpreadsheet();
   var sheet = spreadsheet.getSheetByName(CONFIG.SHEET_NAMES.LOGS);
   if (sheet) return sheet;
 
   sheet = spreadsheet.insertSheet(CONFIG.SHEET_NAMES.LOGS);
-  sheet.appendRow(['Timestamp', 'Level', 'EventType', 'UserID', 'Command', 'Message', 'ContextJSON']);
+  sheet.appendRow(LOGS_CANONICAL_HEADERS);
   return sheet;
 }
 
 function appendLogRow(rowObj) {
   try {
     var sheet = ensureLogsSheet();
-    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-    var row = headers.map(function (h) { return rowObj[h] !== undefined ? rowObj[h] : ''; });
+    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(function (header) {
+      return normalizeWhitespace(header);
+    });
+    var normalizedRow = normalizeObjectKeys(rowObj || {});
+    var row = headers.map(function (header) {
+      var token = normalizeHeaderToken(header);
+      if (normalizedRow[token] !== undefined) return normalizedRow[token];
+
+      var migratedCanonical = CANONICAL_HEADER_ALIASES[token];
+      if (migratedCanonical) {
+        var migratedToken = normalizeHeaderToken(migratedCanonical);
+        if (normalizedRow[migratedToken] !== undefined) return normalizedRow[migratedToken];
+      }
+
+      return '';
+    });
     sheet.appendRow(row);
   } catch (error) {
     Logger.log('Failed to write log row: ' + error);

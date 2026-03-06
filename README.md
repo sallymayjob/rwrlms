@@ -60,6 +60,49 @@ slack-lms/
     └── deployment.md
 ```
 
+## Canonical CSV Tables and Sheet Names
+
+Production CSV templates map to these canonical Google Sheet tabs:
+
+- `database/courses-template.csv` → `Courses`
+- `database/modules-template.csv` → `Modules`
+- `database/lessons-template.csv` → `Lessons`
+- `database/learners-template.csv` → `Learners`
+- `database/submissions-template.csv` → `Submissions`
+- `database/months-template.csv` → `Months` (optional unless month-based rollups are enabled)
+- `database/dashboard-template.csv` → `Dashboard` (optional, recommended)
+
+`Logs` is created/managed by Apps Script runtime (`logging.gs`) and is not imported from a template CSV.
+
+## Header Normalization and Lookup Behavior
+
+- CSV header values are trimmed and whitespace-normalized before validation (`csvImport.gs`).
+- Log writes in `logging.gs` are header-order independent: values are matched to the target `Logs` sheet by normalized header token, not by row-object key order.
+- For `Logs`, header matching is tolerant to case and punctuation differences (for example `UserID`, `user id`, and `user_id` all normalize to the same lookup token).
+
+## Lesson ID Validation and Parser Behavior
+
+Canonical lesson IDs use `M##-W##-L##` (example: `M03-W02-L04`).
+
+- `/submit` parsing requires this exact canonical format and rejects suffix variants.
+- Workflow release/review input parsing requires this exact canonical format and rejects suffix variants.
+- CSV validation also enforces canonical format and blocks imports with non-canonical IDs.
+
+Suffix variants such as `M03-W02-L04A`, `M03-W02-L04-v2`, `M03-W02-L04_01`, or `M03-W02-L04:alt` are treated as invalid by current validators/parsers.
+
+## Deprecated-to-Current Header Migration Notes
+
+When migrating older content generators or historical CSVs, map deprecated fields to current headers:
+
+- `CourseID` → `EnrollmentCourseID`
+- `CurrentModule` → `ActiveModuleID`
+- `Progress` → `CompletionPercent`
+- `UserID` → `SlackUserID`
+- `CoreContent` → `Explanation`
+- `Mission` → `PracticeTask`
+
+> Runtime compatibility note: `logging.gs` includes alias-aware header resolution for legacy/deprecated key names during row append.
+
 ## Quick Start
 
 1. Create a Google Sheet named `RWR_LMS_DATABASE` with tabs:
