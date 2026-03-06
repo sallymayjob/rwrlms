@@ -22,16 +22,6 @@
         "description": "Launch the Agentic LMS workflow trigger"
       }
     ],
-    "workflow_steps": [
-      {
-        "name": "Fetch learner lesson",
-        "callback_id": "lms_fetch_lesson"
-      },
-      {
-        "name": "Record learner submission",
-        "callback_id": "lms_record_submission"
-      }
-    ],
     "slash_commands": [
       {
         "command": "/onboard",
@@ -128,7 +118,8 @@
     "event_subscriptions": {
       "request_url": "https://script.google.com/macros/s/DEPLOYMENT_ID/exec",
       "bot_events": [
-        "app_mention"
+        "app_mention",
+        "workflow_step_execute"
       ]
     },
     "interactivity": {
