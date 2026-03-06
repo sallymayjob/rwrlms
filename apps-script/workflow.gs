@@ -12,6 +12,47 @@ function isWorkflowTriggerPayload(payload) {
   return !!(payload.workflowTrigger || payload.workflowStep || payload.workflow);
 }
 
+
+function getWorkflowPolicy() {
+  return CONFIG.WORKFLOW_POLICY || {};
+}
+
+function getAllowedSheetsForAction(action) {
+  var policy = getWorkflowPolicy();
+  var sheetsByAction = policy.SHEETS_BY_ACTION || {};
+  return sheetsByAction[action] || [];
+}
+
+function getAllowedFieldsForActionAndSheet(action, sheetName) {
+  var policy = getWorkflowPolicy();
+  var fieldsByActionAndSheet = policy.FIELDS_BY_ACTION_AND_SHEET || {};
+  var fieldsBySheet = fieldsByActionAndSheet[action] || {};
+  return fieldsBySheet[sheetName] || null;
+}
+
+function isAllowedWorkflowAction(action) {
+  var policy = getWorkflowPolicy();
+  var actions = policy.ACTIONS || [];
+  return actions.indexOf(action) >= 0;
+}
+
+function sanitizeWorkflowInputForWrite(request) {
+  var input = request.input || {};
+  var allowedFields = getAllowedFieldsForActionAndSheet(request.action, request.sheetName);
+
+  if (!allowedFields || !allowedFields.length) {
+    return input;
+  }
+
+  var sanitized = {};
+  Object.keys(input).forEach(function (key) {
+    if (allowedFields.indexOf(key) >= 0) {
+      sanitized[key] = input[key];
+    }
+  });
+
+  return sanitized;
+}
 function validateWorkflowTriggerPayload(payload) {
   if (!isWorkflowTriggerPayload(payload)) {
     return {
@@ -37,7 +78,8 @@ function validateWorkflowTriggerPayload(payload) {
       action: action,
       input: payload.input || workflow.input || {},
       query: payload.query || workflow.query || {},
-      output: payload.output || workflow.output || {}
+      output: payload.output || workflow.output || {},
+      userId: String(payload.user_id || payload.userId || workflow.user_id || workflow.userId || '')
     }
   };
 }
@@ -269,8 +311,10 @@ function buildWorkflowResponse(request, executionResult) {
 function routeWorkflow(payload) {
   var validation = validateWorkflowTriggerPayload(payload);
   if (!validation.ok) {
-    logWorkflowFailure(payload, validation.reason, {
-      stage: 'validation'
+    var isPolicyViolation = String(validation.reason || '').indexOf('policy_violation') === 0;
+    logWorkflowFailure(payload, isPolicyViolation ? 'policy_violation' : validation.reason, {
+      stage: 'validation',
+      detail: validation.reason
     });
     return workflowJsonResponse({
       ok: false,
@@ -281,6 +325,13 @@ function routeWorkflow(payload) {
   var request = validation.normalized;
 
   logWorkflowTriggerStart(request);
+
+  var adminAccessDenied = enforceWorkflowAdminAccess(request);
+  if (adminAccessDenied) {
+    logWorkflowTriggerEnd(request, { ok: false, action: request.action, reason: 'admin_access_denied' });
+    return workflowJsonResponse(adminAccessDenied);
+  }
+
   try {
     var executionResult = executeWorkflowAction(request);
     var response = buildWorkflowResponse(request, executionResult);

@@ -1,5 +1,8 @@
 /** Spreadsheet data access layer. */
 
+var IDEMPOTENCY_SHEET_NAME = 'Idempotency';
+var IDEMPOTENCY_HEADERS = ['Key', 'CreatedAt', 'State', 'UserID', 'LessonID', 'Status', 'RequestID', 'ContextJSON'];
+
 function getSpreadsheet() {
   const id = getScriptProperty(CONFIG.PROPERTIES.SHEET_ID);
   return SpreadsheetApp.openById(id);
@@ -11,6 +14,44 @@ function getSheetByName(name) {
     throw new Error('Missing sheet tab: ' + name);
   }
   return sheet;
+}
+
+function ensureIdempotencySheet() {
+  var spreadsheet = getSpreadsheet();
+  var sheet = spreadsheet.getSheetByName(IDEMPOTENCY_SHEET_NAME);
+  if (sheet) return sheet;
+
+  sheet = spreadsheet.insertSheet(IDEMPOTENCY_SHEET_NAME);
+  sheet.appendRow(IDEMPOTENCY_HEADERS);
+  return sheet;
+}
+
+function readIdempotencyEntryByKey(key) {
+  var sheet = ensureIdempotencySheet();
+  var values = sheet.getDataRange().getValues();
+  if (values.length < 2) return null;
+
+  var headers = values[0];
+  var keyIdx = headers.indexOf('Key');
+  if (keyIdx < 0) return null;
+
+  for (var r = 1; r < values.length; r++) {
+    if (String(values[r][keyIdx]) === String(key)) {
+      var obj = {};
+      headers.forEach(function (h, i) { obj[h] = values[r][i]; });
+      obj.__rowNumber = r + 1;
+      return obj;
+    }
+  }
+
+  return null;
+}
+
+function appendIdempotencyEntry(rowObj) {
+  var sheet = ensureIdempotencySheet();
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var row = headers.map(function (h) { return rowObj[h] !== undefined ? rowObj[h] : ''; });
+  sheet.appendRow(row);
 }
 
 function readTable(name) {

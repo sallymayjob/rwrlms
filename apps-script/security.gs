@@ -45,3 +45,48 @@ function verifySlackRequest(e, envelope) {
 
   return true;
 }
+
+function getAdminUserIds() {
+  var raw = getOptionalScriptProperty(CONFIG.PROPERTIES.ADMIN_USER_IDS, '');
+  if (!raw) return [];
+
+  return raw.split(',').map(function (id) {
+    return normalizeWhitespace(id);
+  }).filter(function (id) {
+    return !!id;
+  });
+}
+
+function isAdminUser(userId) {
+  var normalizedUserId = normalizeWhitespace(userId);
+  if (!normalizedUserId) return false;
+
+  var adminIds = getAdminUserIds();
+  return adminIds.indexOf(normalizedUserId) >= 0;
+}
+
+function enforceAdminAccess(payload, handlerName, actionDescription) {
+  var userId = payload && payload.user_id;
+  var command = payload && payload.command;
+  var action = actionDescription || (handlerName || 'admin_action');
+
+  if (!isAdminUser(userId)) {
+    logEvent('ADMIN_ACCESS_DENIED', 'Non-admin attempted admin action', {
+      userId: userId,
+      command: command,
+      handler: handlerName || '',
+      action: action
+    });
+    return slackEphemeral('🚫 You are not authorized to run `' + (command || action) + '`. Contact an admin if you need access.');
+  }
+
+  logEvent('ADMIN_ACCESS_GRANTED', 'Admin authorized for admin action', {
+    userId: userId,
+    command: command,
+    handler: handlerName || '',
+    action: action
+  });
+
+  return null;
+}
+
