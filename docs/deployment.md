@@ -154,7 +154,7 @@ Run this checklist after trigger provisioning changes:
 ## Troubleshooting
 
 - 401/invalid signature: verify signing secret and timestamp handling.
-- Event Subscriptions URL verification failing (`challenge` not accepted): ensure `doPost(e)` returns the **raw challenge string** immediately (text/plain), not a wrapped JSON object, and that your Event Request URL points to the latest `/exec` deployment.
+- Event Subscriptions URL verification failing (`challenge` not accepted / timeout): ensure `doPost(e)` returns the **raw challenge string** immediately (text/plain), your Request URL uses the latest `/exec` deployment (not `/dev`), and web app access is set to `Anyone`.
 - Empty responses: check script execution logs and `Logs` tab.
 - Slash command `dispatch_failed` (for example `/cert`):
   - Confirm that **every** slash command (including `/cert`) points to the same deployed `/exec` URL.
