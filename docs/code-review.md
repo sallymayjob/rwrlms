@@ -1,29 +1,21 @@
-# Code Review Notes
+# Code Review Notes (Migrated)
 
-This review focuses on correctness and deployability of the Apps Script + Sheets implementation.
+> This page now serves as a pointer only. Historical findings and dated recommendations were moved to `docs/archive/code-review-legacy.md`.
 
-## Findings Addressed
+## Current review source-of-truth
 
-1. **Request verification could fail in Apps Script deployments**
-   - Issue: relying only on `X-Slack-*` headers can fail when Apps Script web apps do not expose headers.
-   - Fix: `verifySlackRequest` now uses signature verification when headers are present, and falls back to Slack verification token validation (`payload.token`) otherwise.
+Use these documents for active review context:
 
-2. **Course lesson filtering was a no-op**
-   - Issue: `getLessonsForCourse(courseId)` previously ignored course/module boundaries.
-   - Fix: added module mapping (`Modules` sheet) and filtered lessons by `Lessons.Module` values belonging to the selected course.
+- `docs/source-of-truth-architecture.md`
+- `docs/system-architecture.md`
+- `docs/workflow.md`
+- `docs/operator/daily-operations.md`
 
-3. **Module-based progression**
-   - Issue: learner pacing was lesson-pointer based and not module-based.
-   - Fix: learner state now uses `CurrentModule`; `/learn` and submission updates progress module-by-module.
+## Outdated content moved
 
-4. **Dashboard formula column references were stale**
-   - Issue: formulas pointed to wrong columns after schema updates.
-   - Fix: updated formulas:
-     - `ActiveCourses`: `Courses!I2:I` (Status)
-     - `ActiveLessons`: `Lessons!G2:G` (Status)
+The prior point-in-time sections below are no longer maintained here:
 
-## Remaining Recommendations
+- "Findings Addressed"
+- "Remaining Recommendations"
 
-- Add a lightweight validation script for CSV header/schema drift checks.
-- Add idempotency key handling for duplicate `/submit` retries from Slack.
-- Add role-based guardrails for admin-only commands like `/report`.
+These remain available in `docs/archive/code-review-legacy.md` for historical reference only.
