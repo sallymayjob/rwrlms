@@ -9,14 +9,18 @@ function parseSubmitText(text) {
 }
 
 function recordSubmission(userId, lessonId, status, score, method) {
-  appendRow(CONFIG.SHEET_NAMES.SUBMISSIONS, {
-    SubmissionID: makeId('S'),
-    UserID: userId,
-    LessonID: lessonId,
-    Timestamp: nowISO(),
-    Score: score,
-    Status: status,
-    Method: method || 'slash_command'
+  executeSheetUpdate({
+    action: 'insert',
+    sheetName: CONFIG.SHEET_NAMES.SUBMISSIONS,
+    row: {
+      SubmissionID: makeId('S'),
+      UserID: userId,
+      LessonID: lessonId,
+      Timestamp: nowISO(),
+      Score: score,
+      Status: status,
+      Method: method || 'slash_command'
+    }
   });
 }
 
@@ -37,10 +41,15 @@ function updateLearnerAfterSubmission(learner, lessonId) {
 
   var newStatus = hasRemaining ? 'active' : 'completed';
 
-  updateRowByField(CONFIG.SHEET_NAMES.LEARNERS, 'UserID', learner.UserID, {
-    CurrentModule: nextModule,
-    Progress: newProgress,
-    Status: newStatus
+  executeSheetUpdate({
+    action: 'update',
+    sheetName: CONFIG.SHEET_NAMES.LEARNERS,
+    query: { fieldName: 'UserID', fieldValue: learner.UserID },
+    row: {
+      CurrentModule: nextModule,
+      Progress: newProgress,
+      Status: newStatus
+    }
   });
 
   return { nextModule: nextModule, progress: newProgress, status: newStatus };
@@ -97,16 +106,7 @@ function reportingAgent(payload) {
   return withErrorGuard('reportingAgent', function () {
     var learners = readTable(CONFIG.SHEET_NAMES.LEARNERS);
     var submissions = readTable(CONFIG.SHEET_NAMES.SUBMISSIONS);
-    var active = learners.filter(function (l) { return String(l.Status).toLowerCase() === 'active'; }).length;
-    var completed = learners.filter(function (l) { return String(l.Status).toLowerCase() === 'completed'; }).length;
-
-    var lines = [
-      '*LMS Report*',
-      'Learners: ' + learners.length,
-      'Active Learners: ' + active,
-      'Completed Learners: ' + completed,
-      'Submissions: ' + submissions.length
-    ];
-    return slackEphemeral(lines.join('\n'));
+    var summary = summarizeLmsState(learners, submissions);
+    return slackEphemeral(formatReportSummaryForSlack(summary));
   });
 }

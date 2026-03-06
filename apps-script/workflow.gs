@@ -86,7 +86,11 @@ function executeWorkflowQuery(request) {
   }
 
   if (action === 'insert') {
-    appendRow(sheetName, input);
+    executeSheetUpdate({
+      action: 'insert',
+      sheetName: sheetName,
+      row: input
+    });
     logWorkflowQueryAction(request, {
       phase: 'complete',
       action: action,
@@ -107,7 +111,16 @@ function executeWorkflowQuery(request) {
       throw new Error('Missing query.fieldName for update action.');
     }
 
-    var updated = updateRowByField(sheetName, fieldNameForUpdate, fieldValueForUpdate, input);
+    var updateResult = executeSheetUpdate({
+      action: 'update',
+      sheetName: sheetName,
+      query: {
+        fieldName: fieldNameForUpdate,
+        fieldValue: fieldValueForUpdate
+      },
+      row: input
+    });
+    var updated = updateResult.updated > 0;
     logWorkflowQueryAction(request, {
       phase: 'complete',
       action: action,
