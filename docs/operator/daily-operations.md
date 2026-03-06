@@ -26,3 +26,16 @@ This page is the current runbook for routine LMS operations.
 - [CSV Import Operations](./csv-import.md)
 - [Incident Handling](./incident-handling.md)
 - [Source of Truth Architecture](../source-of-truth-architecture.md)
+
+
+## Schema integrity quick check
+
+1. Confirm canonical tabs exist: `Courses`, `Modules`, `Lessons`, `Learners`, `Submissions`, `Logs` (plus `Months`/`Dashboard` when enabled).
+2. Confirm lessons imports continue to use canonical LessonID format (`M##-W##-L##`) without suffix variants.
+3. For legacy pipelines, verify deprecated headers are mapped before ingestion:
+   - `CourseID` → `EnrollmentCourseID`
+   - `CurrentModule` → `ActiveModuleID`
+   - `Progress` → `CompletionPercent`
+   - `UserID` → `SlackUserID`
+   - `CoreContent` → `Explanation`
+   - `Mission` → `PracticeTask`
