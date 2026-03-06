@@ -57,9 +57,10 @@ function doPost(e) {
   // This avoids handshake timeout issues caused by downstream auth/logging/parsing errors.
   var challenge = extractSlackChallenge(e);
   if (challenge) {
+    // Slack URL verification expects the raw challenge string in the response body.
     return ContentService
-      .createTextOutput(JSON.stringify({ challenge: challenge }))
-      .setMimeType(ContentService.MimeType.JSON);
+      .createTextOutput(challenge)
+      .setMimeType(ContentService.MimeType.TEXT);
   }
 
   return withErrorGuard('doPost', function () {

@@ -154,5 +154,11 @@ Run this checklist after trigger provisioning changes:
 ## Troubleshooting
 
 - 401/invalid signature: verify signing secret and timestamp handling.
+- Event Subscriptions URL verification failing (`challenge` not accepted): ensure `doPost(e)` returns the **raw challenge string** immediately (text/plain), not a wrapped JSON object, and that your Event Request URL points to the latest `/exec` deployment.
 - Empty responses: check script execution logs and `Logs` tab.
+- Slash command `dispatch_failed` (for example `/cert`):
+  - Confirm that **every** slash command (including `/cert`) points to the same deployed `/exec` URL.
+  - In Apps Script Deployments, ensure the deployment is current and accessible as `Anyone`.
+  - Reinstall the Slack app after command URL or scope/event updates.
+  - Check Apps Script **Executions** for timeout/errors and verify `SPREADSHEET_ID` and Slack secrets are set in Script Properties.
 - Missing lessons: validate CSV headers and `LESSON_CSV_FILE_ID`.
