@@ -87,13 +87,16 @@ function getLessonById(lessonId) {
 }
 
 function getCompletedLessonIds(userId) {
-  var submissions = readTable(CONFIG.SHEET_NAMES.SUBMISSIONS)
-    .filter(function (s) {
-      return String(readLogicalValue(s, CONFIG.SHEET_NAMES.SUBMISSIONS, 'learnerId', '')) === String(userId) &&
-        ['complete', 'pass', 'done'].indexOf(String(readLogicalValue(s, CONFIG.SHEET_NAMES.SUBMISSIONS, 'status', '')).toLowerCase()) >= 0;
-    });
+  var canonicalColumns = resolveTableCanonicalColumns('LESSON_SUBMISSIONS');
+  var submissions = readLessonSubmissions().filter(function (s) {
+    var learnerId = getCanonicalValue(s, canonicalColumns, 'learnerId');
+    var status = getCanonicalValue(s, canonicalColumns, 'status');
+    return String(learnerId) === String(userId) && ['complete', 'pass', 'done'].indexOf(String(status).toLowerCase()) >= 0;
+  });
   var out = {};
-  submissions.forEach(function (s) { out[String(readLogicalValue(s, CONFIG.SHEET_NAMES.SUBMISSIONS, 'lessonId', ''))] = true; });
+  submissions.forEach(function (s) {
+    out[String(getCanonicalValue(s, canonicalColumns, 'lessonId'))] = true;
+  });
   return out;
 }
 

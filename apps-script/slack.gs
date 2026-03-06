@@ -48,5 +48,14 @@ function postSlackMessage(channel, text) {
   if (!body.ok) {
     throw new Error('Slack API error: ' + body.error);
   }
+
+  createSlackThreadRecord({
+    threadId: makeId('thread'),
+    channelId: channel,
+    threadTs: body.ts || '',
+    parentTs: (body.message && body.message.thread_ts) || body.ts || '',
+    createdAt: nowISO()
+  }, ['channelId', 'threadTs']);
+
   return body;
 }

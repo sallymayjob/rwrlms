@@ -200,9 +200,194 @@ function appendIdempotencyEntry(rowObj) {
   sheet.appendRow(row);
 }
 
-function readTable(tableName, schema) {
-  var resolved = resolveSheetWithHeaders(tableName, schema);
-  var values = resolved.sheet.getDataRange().getValues();
+function getTableSchema(tableKey) {
+  var tables = CONFIG.SCHEMA && CONFIG.SCHEMA.TABLES;
+  if (!tables || !tables[tableKey]) {
+    throw new Error('Unknown schema table key: ' + tableKey);
+  }
+  return tables[tableKey];
+}
+
+function resolveCanonicalColumnName(headers, candidates) {
+  var headerList = headers || [];
+  for (var i = 0; i < candidates.length; i++) {
+    if (headerList.indexOf(candidates[i]) >= 0) return candidates[i];
+  }
+  return candidates[0] || '';
+}
+
+function resolveTableCanonicalColumns(tableKey) {
+  var schema = getTableSchema(tableKey);
+  var sheet = getSheetByName(schema.sheetName);
+  var headerValues = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0] || [];
+  var canonicalColumns = {};
+  Object.keys(schema.canonicalKeys || {}).forEach(function (canonicalKey) {
+    canonicalColumns[canonicalKey] = resolveCanonicalColumnName(headerValues, schema.canonicalKeys[canonicalKey]);
+  });
+  return canonicalColumns;
+}
+
+function getCanonicalValue(row, canonicalColumns, canonicalKey) {
+  var columnName = canonicalColumns[canonicalKey];
+  if (!columnName) return '';
+  return row[columnName];
+}
+
+function findTableRowByCanonicalKey(tableKey, canonicalKey, value) {
+  var schema = getTableSchema(tableKey);
+  var rows = readTable(schema.sheetName);
+  var canonicalColumns = resolveTableCanonicalColumns(tableKey);
+  return rows.find(function (row) {
+    return String(getCanonicalValue(row, canonicalColumns, canonicalKey)) === String(value);
+  }) || null;
+}
+
+function findDuplicateRowByCanonicalValues(tableKey, keyValues) {
+  var schema = getTableSchema(tableKey);
+  var rows = readTable(schema.sheetName);
+  var canonicalColumns = resolveTableCanonicalColumns(tableKey);
+
+  return rows.find(function (row) {
+    return Object.keys(keyValues || {}).every(function (canonicalKey) {
+      return String(getCanonicalValue(row, canonicalColumns, canonicalKey)) === String(keyValues[canonicalKey]);
+    });
+  }) || null;
+}
+
+function buildTableRowFromCanonicalValues(tableKey, canonicalValues) {
+  var canonicalColumns = resolveTableCanonicalColumns(tableKey);
+  var row = {};
+  Object.keys(canonicalValues || {}).forEach(function (canonicalKey) {
+    var columnName = canonicalColumns[canonicalKey];
+    if (columnName) {
+      row[columnName] = canonicalValues[canonicalKey];
+    }
+  });
+  return row;
+}
+
+function readLessonSubmissions() {
+  return readTable(getTableSchema('LESSON_SUBMISSIONS').sheetName);
+}
+
+function createLessonSubmission(canonicalValues, duplicateCheckKeys) {
+  var tableKey = 'LESSON_SUBMISSIONS';
+  var schema = getTableSchema(tableKey);
+  var duplicateKeys = duplicateCheckKeys || ['idempotencyKey'];
+  var filterValues = {};
+  duplicateKeys.forEach(function (k) {
+    if (canonicalValues[k] !== undefined && canonicalValues[k] !== '') {
+      filterValues[k] = canonicalValues[k];
+    }
+  });
+  var existing = Object.keys(filterValues).length ? findDuplicateRowByCanonicalValues(tableKey, filterValues) : null;
+  if (existing) {
+    return { inserted: false, duplicate: true, row: existing };
+  }
+
+  var row = buildTableRowFromCanonicalValues(tableKey, canonicalValues);
+  appendRow(schema.sheetName, row);
+  return { inserted: true, duplicate: false, row: row };
+}
+
+function ensureTableWithHeaders(tableKey) {
+  var schema = getTableSchema(tableKey);
+  var spreadsheet = getSpreadsheet();
+  var sheet = spreadsheet.getSheetByName(schema.sheetName);
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(schema.sheetName);
+    var headers = [];
+    Object.keys(schema.canonicalKeys || {}).forEach(function (k) {
+      headers.push(schema.canonicalKeys[k][0]);
+    });
+    if (headers.length) {
+      sheet.appendRow(headers);
+    }
+  }
+  return sheet;
+}
+
+function readQaRecords() {
+  ensureTableWithHeaders('QA_RECORDS');
+  return readTable(getTableSchema('QA_RECORDS').sheetName);
+}
+
+function createQaRecord(canonicalValues, duplicateCheckKeys) {
+  ensureTableWithHeaders('QA_RECORDS');
+  var tableKey = 'QA_RECORDS';
+  var schema = getTableSchema(tableKey);
+  var duplicateKeys = duplicateCheckKeys || ['idempotencyKey', 'submissionRecordId'];
+  var filterValues = {};
+  duplicateKeys.forEach(function (k) {
+    if (canonicalValues[k] !== undefined && canonicalValues[k] !== '') {
+      filterValues[k] = canonicalValues[k];
+    }
+  });
+  var existing = Object.keys(filterValues).length ? findDuplicateRowByCanonicalValues(tableKey, filterValues) : null;
+  if (existing) {
+    return { inserted: false, duplicate: true, row: existing };
+  }
+
+  var row = buildTableRowFromCanonicalValues(tableKey, canonicalValues);
+  appendRow(schema.sheetName, row);
+  return { inserted: true, duplicate: false, row: row };
+}
+
+function readMetricsRecords() {
+  ensureTableWithHeaders('METRICS');
+  return readTable(getTableSchema('METRICS').sheetName);
+}
+
+function createMetricRecord(canonicalValues, duplicateCheckKeys) {
+  ensureTableWithHeaders('METRICS');
+  var tableKey = 'METRICS';
+  var schema = getTableSchema(tableKey);
+  var duplicateKeys = duplicateCheckKeys || ['idempotencyKey', 'metricName', 'operationId'];
+  var filterValues = {};
+  duplicateKeys.forEach(function (k) {
+    if (canonicalValues[k] !== undefined && canonicalValues[k] !== '') {
+      filterValues[k] = canonicalValues[k];
+    }
+  });
+  var existing = Object.keys(filterValues).length ? findDuplicateRowByCanonicalValues(tableKey, filterValues) : null;
+  if (existing) {
+    return { inserted: false, duplicate: true, row: existing };
+  }
+
+  var row = buildTableRowFromCanonicalValues(tableKey, canonicalValues);
+  appendRow(schema.sheetName, row);
+  return { inserted: true, duplicate: false, row: row };
+}
+
+function readSlackThreads() {
+  ensureTableWithHeaders('SLACK_THREADS');
+  return readTable(getTableSchema('SLACK_THREADS').sheetName);
+}
+
+function createSlackThreadRecord(canonicalValues, duplicateCheckKeys) {
+  ensureTableWithHeaders('SLACK_THREADS');
+  var tableKey = 'SLACK_THREADS';
+  var schema = getTableSchema(tableKey);
+  var duplicateKeys = duplicateCheckKeys || ['channelId', 'threadTs'];
+  var filterValues = {};
+  duplicateKeys.forEach(function (k) {
+    if (canonicalValues[k] !== undefined && canonicalValues[k] !== '') {
+      filterValues[k] = canonicalValues[k];
+    }
+  });
+  var existing = Object.keys(filterValues).length ? findDuplicateRowByCanonicalValues(tableKey, filterValues) : null;
+  if (existing) {
+    return { inserted: false, duplicate: true, row: existing };
+  }
+
+  var row = buildTableRowFromCanonicalValues(tableKey, canonicalValues);
+  appendRow(schema.sheetName, row);
+  return { inserted: true, duplicate: false, row: row };
+}
+
+function readTable(name) {
+  const sheet = getSheetByName(name);
+  const values = sheet.getDataRange().getValues();
   if (values.length <= 1) return [];
 
   var schemaHeaders = resolved.schema.headers.length ? resolved.schema.headers : resolved.headers;

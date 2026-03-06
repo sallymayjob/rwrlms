@@ -47,7 +47,7 @@ function processSubmissionOnce(payload, learner, lessonId, status, score, method
       };
     }
 
-    recordSubmission(learnerId, lessonId, status, score, method);
+    recordSubmission(learner.UserID, lessonId, status, score, method, key);
     var update = updateLearnerAfterSubmission(learner, lessonId);
 
     appendIdempotencyEntry({
@@ -83,20 +83,18 @@ function parseSubmitText(text) {
   };
 }
 
-function recordSubmission(userId, lessonId, status, score, method) {
-  executeSheetUpdate({
-    action: 'insert',
-    sheetName: CONFIG.SHEET_NAMES.SUBMISSIONS,
-    row: {
-      SubmissionID: makeId('S'),
-      UserID: userId,
-      LessonID: lessonId,
-      Timestamp: nowISO(),
-      Score: score,
-      Status: status,
-      Method: method || 'slash_command'
-    }
-  });
+function recordSubmission(userId, lessonId, status, score, method, idempotencyKey) {
+  var submissionId = makeId('S');
+  createLessonSubmission({
+    submissionRecordId: submissionId,
+    learnerId: userId,
+    lessonId: lessonId,
+    submittedAt: nowISO(),
+    score: score,
+    status: status,
+    method: method || 'slash_command',
+    idempotencyKey: idempotencyKey || ''
+  }, ['idempotencyKey', 'submissionRecordId']);
 }
 
 function updateLearnerAfterSubmission(learner, lessonId) {
@@ -195,8 +193,11 @@ function reportingAgent(payload) {
     if (accessDenied) return accessDenied;
 
     var learners = readTable(CONFIG.SHEET_NAMES.LEARNERS);
-    var submissions = readTable(CONFIG.SHEET_NAMES.SUBMISSIONS);
-    var summary = summarizeLmsState(learners, submissions);
+    var submissions = readLessonSubmissions();
+    var qaRecords = readQaRecords();
+    var metricRecords = readMetricsRecords();
+    var slackThreads = readSlackThreads();
+    var summary = summarizeLmsState(learners, submissions, qaRecords, metricRecords, slackThreads);
     return slackEphemeral(formatReportSummaryForSlack(summary));
   });
 }

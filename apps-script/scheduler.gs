@@ -237,6 +237,15 @@ function recordSchedulerOperationSuccess(operationName, operationId, startedAt, 
     result: result,
     counters: operation
   });
+
+  createMetricRecord({
+    metricId: makeId('metric'),
+    metricName: 'scheduler_operation_success',
+    metricValue: 1,
+    metricTimestamp: nowISO(),
+    operationId: operationId,
+    idempotencyKey: ['metric', operationName, operationId, 'success'].join(':')
+  }, ['idempotencyKey']);
 }
 
 function recordSchedulerOperationFailure(operationName, operationId, startedAt, error) {
@@ -269,6 +278,15 @@ function recordSchedulerOperationFailure(operationName, operationId, startedAt, 
     escalated: escalated
   });
 
+  createMetricRecord({
+    metricId: makeId('metric'),
+    metricName: 'scheduler_operation_failure',
+    metricValue: 1,
+    metricTimestamp: nowISO(),
+    operationId: operationId,
+    idempotencyKey: ['metric', operationName, operationId, 'failure'].join(':')
+  }, ['idempotencyKey']);
+
   return {
     escalated: escalated,
     consecutiveFailures: operation.consecutiveFailures
@@ -294,6 +312,16 @@ function emitWeeklySchedulerMetrics(meta) {
   });
 
   notifySchedulerStatus('📊 Weekly scheduler metrics', meta.operationName, meta.operationId, meta.actionLinks, summary);
+
+  createMetricRecord({
+    metricId: makeId('metric'),
+    metricName: 'weekly_scheduler_runs',
+    metricValue: summary.runs,
+    metricTimestamp: nowISO(),
+    operationId: meta.operationId,
+    idempotencyKey: ['metric', meta.operationId, 'weekly_scheduler_runs'].join(':'),
+    threadTs: ''
+  }, ['idempotencyKey']);
 
   state.weekly = {
     startedAt: nowISO(),

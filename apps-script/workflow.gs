@@ -220,6 +220,18 @@ function handleWorkflowOnboardingStart(request) {
 function handleWorkflowContentReviewSubmit(request) {
   var parsed = parseLessonReleaseInput(request.input || {});
   var submissionId = makeId('review');
+  var requestId = String(request.triggerId || request.trigger_id || submissionId);
+
+  createQaRecord({
+    qaRecordId: submissionId,
+    lessonId: parsed.lessonId,
+    learnerId: parsed.reviewerUserId,
+    submissionRecordId: request.input && request.input.submissionId ? request.input.submissionId : '',
+    reviewedAt: nowISO(),
+    status: 'pending_approval',
+    notes: parsed.notes,
+    idempotencyKey: ['qa', parsed.lessonId, requestId, 'submit'].join(':')
+  }, ['idempotencyKey']);
 
   logEvent('WORKFLOW_CONTENT_REVIEW_SUBMIT', 'Content review submitted for human approval.', {
     lessonId: parsed.lessonId,
@@ -262,6 +274,17 @@ function handleWorkflowContentReviewApprove(request) {
     triggerId: request.triggerId,
     notes: parsed.notes
   });
+
+  createQaRecord({
+    qaRecordId: makeId('qa'),
+    lessonId: parsed.lessonId,
+    learnerId: approvedBy,
+    submissionRecordId: request.input && request.input.submissionId ? request.input.submissionId : '',
+    reviewedAt: nowISO(),
+    status: 'approved',
+    notes: parsed.notes,
+    idempotencyKey: ['qa', parsed.lessonId, approvedBy, request.triggerId || '', 'approve'].join(':')
+  }, ['idempotencyKey']);
 
   return {
     workflow: 'content_review',
