@@ -43,7 +43,7 @@ function createLearner(payload) {
     Status: 'active',
     JoinedDate: nowISO().split('T')[0]
   };
-  appendRow(CONFIG.SHEET_NAMES.LEARNERS, learner);
+  executeSheetUpdate({ action: 'insert', sheetName: CONFIG.SHEET_NAMES.LEARNERS, row: learner });
   return learner;
 }
 
@@ -72,11 +72,16 @@ function enrollmentAgent(payload) {
     if (!course) return slackEphemeral('Course `' + courseId + '` not found or inactive.');
 
     var firstModule = getFirstModuleForCourse(courseId);
-    updateRowByField(CONFIG.SHEET_NAMES.LEARNERS, 'UserID', payload.user_id, {
-      CourseID: courseId,
-      CurrentModule: firstModule ? firstModule.ModuleID : '',
-      Progress: 0,
-      Status: 'active'
+    executeSheetUpdate({
+      action: 'update',
+      sheetName: CONFIG.SHEET_NAMES.LEARNERS,
+      query: { fieldName: 'UserID', fieldValue: payload.user_id },
+      row: {
+        CourseID: courseId,
+        CurrentModule: firstModule ? firstModule.ModuleID : '',
+        Progress: 0,
+        Status: 'active'
+      }
     });
 
     logEvent('ENROLL', 'Learner enrolled', { userId: payload.user_id, command: payload.command, courseId: courseId });
@@ -107,11 +112,16 @@ function unenrollAgent(payload) {
     var learner = getLearnerByUserId(payload.user_id);
     if (!learner) return slackEphemeral('No learner profile found.');
 
-    updateRowByField(CONFIG.SHEET_NAMES.LEARNERS, 'UserID', payload.user_id, {
-      CourseID: '',
-      CurrentModule: '',
-      Progress: 0,
-      Status: 'inactive'
+    executeSheetUpdate({
+      action: 'update',
+      sheetName: CONFIG.SHEET_NAMES.LEARNERS,
+      query: { fieldName: 'UserID', fieldValue: payload.user_id },
+      row: {
+        CourseID: '',
+        CurrentModule: '',
+        Progress: 0,
+        Status: 'inactive'
+      }
     });
     logEvent('UNENROLL', 'Learner unenrolled', { userId: payload.user_id, command: payload.command });
     return slackEphemeral('You have been unenrolled. Use `/enroll COURSE_ID` to rejoin.');
